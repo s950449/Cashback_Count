@@ -4,14 +4,35 @@ import { fetchCards, createCard, updateCard, deleteCard } from '../api/client';
 import CardList from '../components/card/CardList';
 import CardFormModal from '../components/card/CardFormModal';
 
+function getErrorMessage(error: unknown, fallback: string) {
+  if (typeof error === 'object' && error !== null && 'response' in error) {
+    const response = (error as { response?: { data?: { detail?: unknown } } }).response;
+    if (typeof response?.data?.detail === 'string') return response.data.detail;
+  }
+  if (error instanceof Error) return error.message;
+  return fallback;
+}
+
 export default function CardSettingsPage() {
   const [cards, setCards] = useState<Card[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editingCard, setEditingCard] = useState<Card | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const data = await fetchCards();
-    setCards(data);
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchCards();
+      setCards(data);
+    } catch (err) {
+      setError(getErrorMessage(err, '載入卡片失敗'));
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -19,14 +40,22 @@ export default function CardSettingsPage() {
   }, [load]);
 
   const handleSave = async (data: CardFormData) => {
-    if (editingCard) {
-      await updateCard(editingCard.id, data);
-    } else {
-      await createCard(data);
+    setSaving(true);
+    setError(null);
+    try {
+      if (editingCard) {
+        await updateCard(editingCard.id, data);
+      } else {
+        await createCard(data);
+      }
+      setShowModal(false);
+      setEditingCard(null);
+      await load();
+    } catch (err) {
+      setError(getErrorMessage(err, editingCard ? '更新卡片失敗' : '新增卡片失敗'));
+    } finally {
+      setSaving(false);
     }
-    setShowModal(false);
-    setEditingCard(null);
-    load();
   };
 
   const handleEdit = (card: Card) => {
@@ -36,8 +65,16 @@ export default function CardSettingsPage() {
 
   const handleDelete = async (id: number) => {
     if (!confirm('確定刪除此卡片？相關消費記錄也會一併刪除。')) return;
-    await deleteCard(id);
-    load();
+    setDeletingId(id);
+    setError(null);
+    try {
+      await deleteCard(id);
+      await load();
+    } catch (err) {
+      setError(getErrorMessage(err, '刪除卡片失敗'));
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   return (
@@ -62,11 +99,19 @@ export default function CardSettingsPage() {
           + 新增卡片
         </button>
       </div>
-      <CardList cards={cards} onEdit={handleEdit} onDelete={handleDelete} />
+      {error && <div style={errorStyle}>{error}</div>}
+      {loading ? (
+        <p style={{ color: '#888' }}>載入中...</p>
+      ) : (
+        <CardList cards={cards} onEdit={handleEdit} onDelete={handleDelete} />
+      )}
+      {saving && <p style={{ color: '#888', fontSize: '0.9rem' }}>正在儲存卡片...</p>}
+      {deletingId && <p style={{ color: '#888', fontSize: '0.9rem' }}>正在刪除卡片 #{deletingId}...</p>}
       {showModal && (
         <CardFormModal
           card={editingCard}
           onSave={handleSave}
+          isSaving={saving}
           onClose={() => {
             setShowModal(false);
             setEditingCard(null);
@@ -76,3 +121,13 @@ export default function CardSettingsPage() {
     </div>
   );
 }
+
+const errorStyle: React.CSSProperties = {
+  padding: '0.75rem 1rem',
+  marginBottom: '1rem',
+  background: '#fff1f2',
+  border: '1px solid #fecdd3',
+  borderRadius: '4px',
+  color: '#9f1239',
+  fontSize: '0.9rem',
+};

@@ -6,6 +6,7 @@ interface Props {
   card: Card | null;
   onSave: (data: CardFormData) => void;
   onClose: () => void;
+  isSaving?: boolean;
 }
 
 const emptyForm: CardFormData = {
@@ -20,7 +21,7 @@ const emptyForm: CardFormData = {
   tiers: [],
 };
 
-export default function CardFormModal({ card, onSave, onClose }: Props) {
+export default function CardFormModal({ card, onSave, onClose, isSaving = false }: Props) {
   const [form, setForm] = useState<CardFormData>(emptyForm);
 
   useEffect(() => {
@@ -47,6 +48,7 @@ export default function CardFormModal({ card, onSave, onClose }: Props) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return;
     onSave(form);
   };
 
@@ -162,11 +164,11 @@ export default function CardFormModal({ card, onSave, onClose }: Props) {
             </select>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
-            <button type="button" onClick={onClose} style={btnSecondary}>
+            <button type="button" onClick={onClose} style={btnSecondary} disabled={isSaving}>
               取消
             </button>
-            <button type="submit" style={btnPrimary}>
-              儲存
+            <button type="submit" style={{ ...btnPrimary, opacity: isSaving ? 0.7 : 1 }} disabled={isSaving}>
+              {isSaving ? '儲存中...' : '儲存'}
             </button>
           </div>
         </form>
