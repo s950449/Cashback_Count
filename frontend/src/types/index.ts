@@ -68,9 +68,18 @@ export interface CardSummary {
   cap_usage_pct: number | null;
 }
 
+export interface CategorySummary {
+  category: string;
+  total_spent: number;
+  total_cashback: number;
+  transaction_count: number;
+  cashback_rate: number;
+}
+
 export interface DashboardSummary {
   month: string;
   total_spent: number;
   total_cashback: number;
   cards: CardSummary[];
+  categories: CategorySummary[];
 }

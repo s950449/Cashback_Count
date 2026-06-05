@@ -110,11 +110,20 @@ class CardSummary(BaseModel):
     cap_usage_pct: Optional[float] = None
 
 
+class CategorySummary(BaseModel):
+    category: str
+    total_spent: float
+    total_cashback: float
+    transaction_count: int
+    cashback_rate: float
+
+
 class DashboardSummary(BaseModel):
     month: str
     total_spent: float
     total_cashback: float
     cards: list[CardSummary]
+    categories: list[CategorySummary]
 
 
 # --- Export ---

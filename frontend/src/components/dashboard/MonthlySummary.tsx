@@ -42,6 +42,40 @@ export default function MonthlySummary({ summary, loading }: Props) {
         </div>
       </div>
 
+      <h3 style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>分類消費明細</h3>
+      {summary.categories.length === 0 ? (
+        <p style={{ color: '#888' }}>本月無分類資料。</p>
+      ) : (
+        <table style={tableStyle}>
+          <thead>
+            <tr>
+              <th style={thStyle}>分類</th>
+              <th style={{ ...thStyle, textAlign: 'right' }}>消費</th>
+              <th style={{ ...thStyle, textAlign: 'right' }}>回饋</th>
+              <th style={{ ...thStyle, textAlign: 'right' }}>筆數</th>
+              <th style={{ ...thStyle, textAlign: 'right' }}>回饋率</th>
+            </tr>
+          </thead>
+          <tbody>
+            {summary.categories.map((category) => (
+              <tr key={category.category}>
+                <td style={tdStyle}>{category.category}</td>
+                <td style={{ ...tdStyle, textAlign: 'right' }}>
+                  ${category.total_spent.toLocaleString()}
+                </td>
+                <td style={{ ...tdStyle, textAlign: 'right', color: '#16813d', fontWeight: 600 }}>
+                  ${category.total_cashback.toLocaleString()}
+                </td>
+                <td style={{ ...tdStyle, textAlign: 'right' }}>{category.transaction_count}</td>
+                <td style={{ ...tdStyle, textAlign: 'right' }}>
+                  {(category.cashback_rate * 100).toFixed(2)}%
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
       {/* Per-card breakdown */}
       <h3 style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>各卡回饋明細</h3>
       {summary.cards.length === 0 ? (
@@ -75,4 +109,28 @@ const totalCard: React.CSSProperties = {
   borderRadius: '6px',
   boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
   textAlign: 'center',
+};
+
+const tableStyle: React.CSSProperties = {
+  width: '100%',
+  borderCollapse: 'collapse',
+  background: '#fff',
+  borderRadius: '6px',
+  overflow: 'hidden',
+  boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+};
+
+const thStyle: React.CSSProperties = {
+  textAlign: 'left',
+  padding: '10px 12px',
+  background: '#f0f0f0',
+  fontWeight: 600,
+  fontSize: '0.85rem',
+  borderBottom: '1px solid #ddd',
+};
+
+const tdStyle: React.CSSProperties = {
+  padding: '10px 12px',
+  borderBottom: '1px solid #eee',
+  fontSize: '0.9rem',
 };

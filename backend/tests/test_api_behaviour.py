@@ -146,6 +146,48 @@ def test_month_filter_validation_rejects_invalid_month(client, path):
     assert response.status_code == 422
 
 
+def test_dashboard_summary_includes_category_breakdown(client):
+    card = create_card(client, fixed_rate=0.02)
+    create_transaction(client, card["id"], 1000, transaction_date="2026-06-01")
+    client.put(
+        "/api/transactions/1",
+        json={"merchant": "Cafe", "category": "餐飲"},
+    )
+    create_transaction(client, card["id"], 500, transaction_date="2026-06-02")
+    client.put(
+        "/api/transactions/2",
+        json={"merchant": "Bus", "category": "交通"},
+    )
+    create_transaction(client, card["id"], 200, transaction_date="2026-06-03")
+
+    response = client.get("/api/dashboard/summary", params={"month": "2026-06"})
+
+    assert response.status_code == 200, response.text
+    assert response.json()["categories"] == [
+        {
+            "category": "餐飲",
+            "total_spent": 1000,
+            "total_cashback": 20,
+            "transaction_count": 1,
+            "cashback_rate": 0.02,
+        },
+        {
+            "category": "交通",
+            "total_spent": 500,
+            "total_cashback": 10,
+            "transaction_count": 1,
+            "cashback_rate": 0.02,
+        },
+        {
+            "category": "未分類",
+            "total_spent": 200,
+            "total_cashback": 4,
+            "transaction_count": 1,
+            "cashback_rate": 0.02,
+        },
+    ]
+
+
 def test_export_rejects_request_supplied_credentials_path(client):
     response = client.post(
         "/api/export/google-sheets",
