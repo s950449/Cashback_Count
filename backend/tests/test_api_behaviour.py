@@ -76,6 +76,28 @@ def create_transaction(
     return response.json()
 
 
+def create_reward_rule(client, card_id, **overrides):
+    payload = {
+        "card_id": card_id,
+        "rule_name": "基本回饋",
+        "reward_kind": "base",
+        "cycle_type": "billing_cycle",
+        "cashback_type": "fixed",
+        "fixed_rate": 0.01,
+        "monthly_cap": None,
+        "calc_method": "per_transaction",
+        "rounding_rule": "floor",
+        "is_active": True,
+        "start_date": None,
+        "end_date": None,
+        "tiers": [],
+    }
+    payload.update(overrides)
+    response = client.post("/api/reward-rules", json=payload)
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
 def test_updating_card_rules_recalculates_existing_transactions(client):
     card = create_card(client, fixed_rate=0.01)
     txn = create_transaction(client, card["id"], 1000)
@@ -423,6 +445,88 @@ def test_reward_rule_rejects_invalid_active_date_range(client):
     )
 
     assert response.status_code == 422
+
+
+def test_reward_rules_round_each_rule_before_summing(client):
+    card = create_card(client, fixed_rate=0.012)
+    create_reward_rule(
+        client,
+        card["id"],
+        rule_name="基本回饋",
+        reward_kind="base",
+        fixed_rate=0.006,
+        rounding_rule="floor",
+    )
+    create_reward_rule(
+        client,
+        card["id"],
+        rule_name="任務加碼",
+        reward_kind="mission_bonus",
+        fixed_rate=0.006,
+        rounding_rule="floor",
+    )
+
+    txn = create_transaction(client, card["id"], 150)
+
+    assert txn["cashback"] == 0
+
+
+def test_reward_rules_use_separate_calendar_and_billing_cycles(client):
+    card = create_card(client, billing_day=15, fixed_rate=0)
+    create_reward_rule(
+        client,
+        card["id"],
+        rule_name="基本回饋",
+        reward_kind="base",
+        cycle_type="billing_cycle",
+        calc_method="aggregate",
+        fixed_rate=0.01,
+    )
+    create_reward_rule(
+        client,
+        card["id"],
+        rule_name="任務加碼",
+        reward_kind="mission_bonus",
+        cycle_type="calendar_month",
+        calc_method="aggregate",
+        fixed_rate=0.02,
+        monthly_cap=30,
+    )
+
+    first = create_transaction(client, card["id"], 1000, transaction_date="2026-06-10")
+    second = create_transaction(client, card["id"], 1000, transaction_date="2026-06-20")
+
+    txns = client.get("/api/transactions", params={"month": "2026-06"}).json()
+    cashback_by_id = {txn["id"]: txn["cashback"] for txn in txns}
+    assert cashback_by_id[first["id"]] == 25
+    assert cashback_by_id[second["id"]] == 25
+
+
+def test_reward_rule_changes_recalculate_existing_transactions(client):
+    card = create_card(client, fixed_rate=0)
+    txn = create_transaction(client, card["id"], 1000)
+    assert txn["cashback"] == 0
+
+    rule = create_reward_rule(client, card["id"], fixed_rate=0.01)
+    txns = client.get("/api/transactions", params={"card_id": card["id"]}).json()
+    assert txns[0]["cashback"] == 10
+
+    updated = client.put(
+        f"/api/reward-rules/{rule['id']}",
+        json={
+            **rule,
+            "fixed_rate": 0.02,
+            "tiers": [],
+        },
+    )
+    assert updated.status_code == 200, updated.text
+    txns = client.get("/api/transactions", params={"card_id": card["id"]}).json()
+    assert txns[0]["cashback"] == 20
+
+    deleted = client.delete(f"/api/reward-rules/{rule['id']}")
+    assert deleted.status_code == 204
+    txns = client.get("/api/transactions", params={"card_id": card["id"]}).json()
+    assert txns[0]["cashback"] == 0
 
 
 def test_dashboard_summary_includes_category_budget_usage(client):

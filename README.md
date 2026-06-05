@@ -204,7 +204,14 @@ POST   /api/export/google-sheets       # 匯出至 Google Sheets
 
 ## 回饋計算邏輯
 
-> 目前交易計算仍使用卡片層級的舊版單一回饋規則；`reward_rules` 已先建立資料模型與 API，後續會把基本回饋、任務加碼、活動回饋拆成各自獨立計算並加總。
+若卡片已設定 `reward_rules`，交易回饋會依每個規則各自計算、各自套用週期與上限，最後再加總到交易的 `cashback`。若卡片尚未設定 `reward_rules`，系統會保留卡片層級的舊版單一回饋規則作為相容 fallback。
+
+`reward_rules.cycle_type` 可選：
+
+- `billing_cycle`：依卡片結帳日切帳單週期
+- `calendar_month`：依自然月統計
+
+`reward_kind` 可用來拆分基本回饋、任務加碼、活動回饋與其他加碼；這些規則不會先合併 rate 或上限，而是分別計算後加總。
 
 每張卡由兩個維度組合出 4 種計算模式：
 

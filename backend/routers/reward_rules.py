@@ -4,6 +4,7 @@ from typing import Optional
 
 from .. import models, schemas
 from ..database import get_db
+from ..services.cashback import recalculate_cashback_cycle
 
 router = APIRouter()
 
@@ -34,6 +35,19 @@ def _replace_tiers(rule: models.RewardRule, tiers: list[schemas.RewardRuleTierCr
         )
 
 
+def _recalculate_card_transactions(db: Session, card: models.Card) -> None:
+    affected_dates = {
+        row[0]
+        for row in db.query(models.Transaction.transaction_date)
+        .filter(models.Transaction.card_id == card.id)
+        .distinct()
+        .all()
+    }
+    db.expire(card, ["reward_rules"])
+    for transaction_date in affected_dates:
+        recalculate_cashback_cycle(db, card, transaction_date)
+
+
 @router.get("", response_model=list[schemas.RewardRuleOut])
 def list_reward_rules(
     card_id: Optional[int] = Query(None),
@@ -47,7 +61,7 @@ def list_reward_rules(
 
 @router.post("", response_model=schemas.RewardRuleOut, status_code=201)
 def create_reward_rule(rule_in: schemas.RewardRuleCreate, db: Session = Depends(get_db)):
-    _get_card(db, rule_in.card_id)
+    card = _get_card(db, rule_in.card_id)
 
     rule = models.RewardRule(
         card_id=rule_in.card_id,
@@ -66,6 +80,8 @@ def create_reward_rule(rule_in: schemas.RewardRuleCreate, db: Session = Depends(
     _replace_tiers(rule, rule_in.tiers)
 
     db.add(rule)
+    db.flush()
+    _recalculate_card_transactions(db, card)
     db.commit()
     db.refresh(rule)
     return rule
@@ -79,7 +95,8 @@ def get_reward_rule(rule_id: int, db: Session = Depends(get_db)):
 @router.put("/{rule_id}", response_model=schemas.RewardRuleOut)
 def update_reward_rule(rule_id: int, rule_in: schemas.RewardRuleUpdate, db: Session = Depends(get_db)):
     rule = _get_reward_rule(db, rule_id)
-    _get_card(db, rule_in.card_id)
+    old_card = rule.card
+    new_card = _get_card(db, rule_in.card_id)
 
     rule.card_id = rule_in.card_id
     rule.rule_name = rule_in.rule_name
@@ -95,6 +112,10 @@ def update_reward_rule(rule_id: int, rule_in: schemas.RewardRuleUpdate, db: Sess
     rule.end_date = rule_in.end_date
     _replace_tiers(rule, rule_in.tiers)
 
+    db.flush()
+    _recalculate_card_transactions(db, new_card)
+    if old_card.id != new_card.id:
+        _recalculate_card_transactions(db, old_card)
     db.commit()
     db.refresh(rule)
     return rule
@@ -103,5 +124,8 @@ def update_reward_rule(rule_id: int, rule_in: schemas.RewardRuleUpdate, db: Sess
 @router.delete("/{rule_id}", status_code=204)
 def delete_reward_rule(rule_id: int, db: Session = Depends(get_db)):
     rule = _get_reward_rule(db, rule_id)
+    card = rule.card
     db.delete(rule)
+    db.flush()
+    _recalculate_card_transactions(db, card)
     db.commit()

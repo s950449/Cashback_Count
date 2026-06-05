@@ -25,6 +25,12 @@ def get_billing_cycle_range(billing_day: int | None, ref_date: date) -> tuple[da
     return start, end
 
 
+def get_calendar_month_range(ref_date: date) -> tuple[date, date]:
+    start = ref_date.replace(day=1)
+    end = start + relativedelta(months=1) - relativedelta(days=1)
+    return start, end
+
+
 def _apply_rounding(value: float, rounding_rule: str) -> float:
     if rounding_rule == "floor":
         return float(math.floor(value))
@@ -64,6 +70,68 @@ def _calc_tiered_cashback(amount: float, tiers: list[models.CashbackTier], spent
             current_pos += applicable
 
     return total_cashback
+
+
+def _get_reward_rule_cycle_range(card: models.Card, rule: models.RewardRule, ref_date: date) -> tuple[date, date]:
+    if rule.cycle_type == "calendar_month":
+        return get_calendar_month_range(ref_date)
+    return get_billing_cycle_range(card.billing_day, ref_date)
+
+
+def _is_reward_rule_active_on(rule: models.RewardRule, txn_date: date) -> bool:
+    if not rule.is_active:
+        return False
+    if rule.start_date is not None and txn_date < rule.start_date:
+        return False
+    if rule.end_date is not None and txn_date > rule.end_date:
+        return False
+    return True
+
+
+def _calc_reward_rule_raw(rule: models.RewardRule, amount: float, spent_so_far: float = 0) -> float:
+    if rule.cashback_type == "fixed":
+        return _calc_fixed_cashback(amount, rule.fixed_rate or 0)
+    return _calc_tiered_cashback(amount, rule.tiers, spent_so_far)
+
+
+def _get_reward_rule_recalc_range(
+    db: Session, card: models.Card, rules: list[models.RewardRule], ref_date: date
+) -> tuple[date, date]:
+    cycle_ranges = [
+        _get_reward_rule_cycle_range(card, rule, ref_date)
+        for rule in rules
+        if _is_reward_rule_active_on(rule, ref_date)
+    ]
+    if not cycle_ranges:
+        return get_billing_cycle_range(card.billing_day, ref_date)
+
+    start = min(cycle_start for cycle_start, _ in cycle_ranges)
+    end = max(cycle_end for _, cycle_end in cycle_ranges)
+
+    while True:
+        txns = (
+            db.query(models.Transaction)
+            .filter(
+                models.Transaction.card_id == card.id,
+                models.Transaction.transaction_date >= start,
+                models.Transaction.transaction_date <= end,
+            )
+            .all()
+        )
+        expanded = False
+        for txn in txns:
+            for rule in rules:
+                if not _is_reward_rule_active_on(rule, txn.transaction_date):
+                    continue
+                cycle_start, cycle_end = _get_reward_rule_cycle_range(card, rule, txn.transaction_date)
+                if cycle_start < start:
+                    start = cycle_start
+                    expanded = True
+                if cycle_end > end:
+                    end = cycle_end
+                    expanded = True
+        if not expanded:
+            return start, end
 
 
 def get_monthly_cashback_used(db: Session, card: models.Card, ref_date: date, exclude_tx_id: int | None = None) -> float:
@@ -189,7 +257,73 @@ def recalculate_aggregate(db: Session, card: models.Card, ref_date: date) -> Non
             distributed += share
 
 
+def recalculate_reward_rules(db: Session, card: models.Card, ref_date: date) -> None:
+    """Recalculate cashback by summing each reward rule after its own cycle, cap, and rounding."""
+    rules = sorted(card.reward_rules, key=lambda rule: rule.id)
+    if not rules:
+        return
+
+    start, end = _get_reward_rule_recalc_range(db, card, rules, ref_date)
+    txns = (
+        db.query(models.Transaction)
+        .filter(
+            models.Transaction.card_id == card.id,
+            models.Transaction.transaction_date >= start,
+            models.Transaction.transaction_date <= end,
+        )
+        .order_by(models.Transaction.transaction_date, models.Transaction.id)
+        .all()
+    )
+    cashback_by_txn_id = {txn.id: 0.0 for txn in txns}
+
+    for rule in rules:
+        txns_by_cycle: dict[tuple[date, date], list[models.Transaction]] = {}
+        for txn in txns:
+            if not _is_reward_rule_active_on(rule, txn.transaction_date):
+                continue
+            cycle = _get_reward_rule_cycle_range(card, rule, txn.transaction_date)
+            txns_by_cycle.setdefault(cycle, []).append(txn)
+
+        for cycle_txns in txns_by_cycle.values():
+            if rule.calc_method == "aggregate":
+                total_amount = sum(txn.amount for txn in cycle_txns)
+                if total_amount == 0:
+                    continue
+
+                raw_total = _calc_reward_rule_raw(rule, total_amount)
+                raw_total = _apply_rounding(raw_total, rule.rounding_rule or "floor")
+                if rule.monthly_cap is not None:
+                    raw_total = min(raw_total, rule.monthly_cap)
+
+                distributed = 0.0
+                for index, txn in enumerate(cycle_txns):
+                    if index == len(cycle_txns) - 1:
+                        share = round(raw_total - distributed, 2)
+                    else:
+                        share = round(raw_total * (txn.amount / total_amount), 2)
+                        distributed += share
+                    cashback_by_txn_id[txn.id] += share
+            else:
+                spent_so_far = 0.0
+                cashback_used = 0.0
+                for txn in cycle_txns:
+                    raw = _calc_reward_rule_raw(rule, txn.amount, spent_so_far)
+                    raw = _apply_rounding(raw, rule.rounding_rule or "floor")
+                    if rule.monthly_cap is not None and cashback_used + raw > rule.monthly_cap:
+                        raw = max(0, rule.monthly_cap - cashback_used)
+
+                    cashback_by_txn_id[txn.id] += raw
+                    spent_so_far += txn.amount
+                    cashback_used += raw
+
+    for txn in txns:
+        txn.cashback = round(cashback_by_txn_id[txn.id], 2)
+
+
 def recalculate_cashback_cycle(db: Session, card: models.Card, ref_date: date) -> None:
+    if card.reward_rules:
+        recalculate_reward_rules(db, card, ref_date)
+        return
     if card.calc_method == "aggregate":
         recalculate_aggregate(db, card, ref_date)
     else:
