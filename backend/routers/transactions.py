@@ -4,15 +4,10 @@ from typing import Optional
 
 from .. import models, schemas
 from ..database import get_db
-from ..services.cashback import calculate_cashback_per_tx, recalculate_aggregate
+from ..services.cashback import recalculate_cashback_cycle
+from ..services.dates import parse_month_range
 
 router = APIRouter()
-
-
-def _compute_and_set_cashback(db: Session, txn: models.Transaction, card: models.Card, exclude_tx_id: int | None = None):
-    if card.calc_method == "per_transaction":
-        txn.cashback = calculate_cashback_per_tx(db, card, txn.amount, txn.transaction_date, exclude_tx_id)
-    # For aggregate, we commit first then recalculate all
 
 
 @router.get("", response_model=list[schemas.TransactionOut])
@@ -25,14 +20,7 @@ def list_transactions(
     if card_id is not None:
         query = query.filter(models.Transaction.card_id == card_id)
     if month:
-        # Filter by year-month of transaction_date
-        year, mon = month.split("-")
-        from datetime import date
-        start = date(int(year), int(mon), 1)
-        if int(mon) == 12:
-            end = date(int(year) + 1, 1, 1)
-        else:
-            end = date(int(year), int(mon) + 1, 1)
+        start, end = parse_month_range(month)
         query = query.filter(
             models.Transaction.transaction_date >= start,
             models.Transaction.transaction_date < end,
@@ -53,18 +41,11 @@ def create_transaction(txn_in: schemas.TransactionCreate, db: Session = Depends(
         transaction_date=txn_in.transaction_date,
     )
 
-    if card.calc_method == "per_transaction":
-        _compute_and_set_cashback(db, txn, card)
-        db.add(txn)
-        db.commit()
-        db.refresh(txn)
-    else:
-        # aggregate: add transaction first, then recalculate all
-        db.add(txn)
-        db.flush()
-        recalculate_aggregate(db, card, txn.transaction_date)
-        db.commit()
-        db.refresh(txn)
+    db.add(txn)
+    db.flush()
+    recalculate_cashback_cycle(db, card, txn.transaction_date)
+    db.commit()
+    db.refresh(txn)
 
     return txn
 
@@ -91,20 +72,14 @@ def update_transaction(txn_id: int, txn_in: schemas.TransactionUpdate, db: Sessi
     if txn_in.transaction_date is not None:
         txn.transaction_date = txn_in.transaction_date
 
-    if card.calc_method == "per_transaction":
-        _compute_and_set_cashback(db, txn, card, exclude_tx_id=txn.id)
-        db.commit()
-        db.refresh(txn)
-    else:
-        db.flush()
-        recalculate_aggregate(db, card, txn.transaction_date)
-        # If card or date changed, also recalculate old cycle
-        if old_card_id != txn.card_id or old_date != txn.transaction_date:
-            old_card = db.query(models.Card).filter(models.Card.id == old_card_id).first()
-            if old_card and old_card.calc_method == "aggregate":
-                recalculate_aggregate(db, old_card, old_date)
-        db.commit()
-        db.refresh(txn)
+    db.flush()
+    recalculate_cashback_cycle(db, card, txn.transaction_date)
+    if old_card_id != txn.card_id or old_date != txn.transaction_date:
+        old_card = db.query(models.Card).filter(models.Card.id == old_card_id).first()
+        if old_card:
+            recalculate_cashback_cycle(db, old_card, old_date)
+    db.commit()
+    db.refresh(txn)
 
     return txn
 
@@ -121,7 +96,7 @@ def delete_transaction(txn_id: int, db: Session = Depends(get_db)):
     db.delete(txn)
     db.flush()
 
-    if card and card.calc_method == "aggregate":
-        recalculate_aggregate(db, card, txn_date)
+    if card:
+        recalculate_cashback_cycle(db, card, txn_date)
 
     db.commit()

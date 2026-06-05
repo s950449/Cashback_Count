@@ -5,3 +5,5 @@ pydantic
 python-dateutil
 gspread
 google-auth
+httpx
+pytest

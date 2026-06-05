@@ -15,5 +15,7 @@ def export_google_sheets(req: schemas.ExportRequest, db: Session = Depends(get_d
         return {"status": "ok", "url": url}
     except FileNotFoundError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=500, detail="Export failed")

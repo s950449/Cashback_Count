@@ -17,6 +17,10 @@ dist/
 
 # Env
 .env
+.env.local
+.env.*.local
+*.key
+*.pem
 *.json
 !package.json
 !package-lock.json

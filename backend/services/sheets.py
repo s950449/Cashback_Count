@@ -1,8 +1,8 @@
 import os
 from sqlalchemy.orm import Session
-from datetime import date
 
 from .. import models, schemas
+from .dates import parse_month_range
 
 
 def export_to_sheets(db: Session, req: schemas.ExportRequest) -> str:
@@ -10,11 +10,11 @@ def export_to_sheets(db: Session, req: schemas.ExportRequest) -> str:
     import gspread
     from google.oauth2.service_account import Credentials
 
-    creds_path = req.credentials_json or os.environ.get("GOOGLE_CREDENTIALS_JSON")
+    creds_path = os.environ.get("GOOGLE_CREDENTIALS_JSON")
     if not creds_path or not os.path.exists(creds_path):
         raise FileNotFoundError(
             "Google service account credentials JSON not found. "
-            "Set GOOGLE_CREDENTIALS_JSON env var or provide credentials_json in request."
+            "Set GOOGLE_CREDENTIALS_JSON env var."
         )
 
     scopes = [
@@ -27,12 +27,7 @@ def export_to_sheets(db: Session, req: schemas.ExportRequest) -> str:
     # Build query
     query = db.query(models.Transaction).join(models.Card)
     if req.month:
-        year, mon = req.month.split("-")
-        start = date(int(year), int(mon), 1)
-        if int(mon) == 12:
-            end = date(int(year) + 1, 1, 1)
-        else:
-            end = date(int(year), int(mon) + 1, 1)
+        start, end = parse_month_range(req.month)
         query = query.filter(
             models.Transaction.transaction_date >= start,
             models.Transaction.transaction_date < end,

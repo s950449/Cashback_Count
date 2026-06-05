@@ -182,4 +182,3 @@ POST   /api/export/google-sheets       # 匯出至 Google Sheets
    ```bash
    export GOOGLE_CREDENTIALS_JSON=/path/to/credentials.json
    ```
-   或在 API 請求中傳入 `credentials_json` 欄位。

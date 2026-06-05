@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from datetime import date
 
 from .. import models, schemas
 from ..database import get_db
+from ..services.dates import parse_month_range
 
 router = APIRouter()
 
@@ -13,12 +13,7 @@ def get_summary(
     month: str = Query(..., description="YYYY-MM format"),
     db: Session = Depends(get_db),
 ):
-    year, mon = month.split("-")
-    start = date(int(year), int(mon), 1)
-    if int(mon) == 12:
-        end = date(int(year) + 1, 1, 1)
-    else:
-        end = date(int(year), int(mon) + 1, 1)
+    start, end = parse_month_range(month)
 
     cards = db.query(models.Card).order_by(models.Card.id).all()
     card_summaries = []

@@ -1,14 +1,20 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 from datetime import date, datetime
-from typing import Optional
+from typing import Literal, Optional
 
 
 # --- CashbackTier ---
 
 class CashbackTierBase(BaseModel):
-    min_amount: float
-    max_amount: Optional[float] = None
-    rate: float
+    min_amount: float = Field(ge=0)
+    max_amount: Optional[float] = Field(default=None, ge=0)
+    rate: float = Field(ge=0)
+
+    @model_validator(mode="after")
+    def validate_amount_range(self):
+        if self.max_amount is not None and self.max_amount <= self.min_amount:
+            raise ValueError("max_amount must be greater than min_amount")
+        return self
 
 
 class CashbackTierCreate(CashbackTierBase):
@@ -25,14 +31,14 @@ class CashbackTierOut(CashbackTierBase):
 # --- Card ---
 
 class CardBase(BaseModel):
-    card_name: str
-    bank_name: str
-    billing_day: Optional[int] = None
-    cashback_type: str = "fixed"
-    fixed_rate: Optional[float] = None
-    monthly_cap: Optional[float] = None
-    calc_method: str = "per_transaction"
-    rounding_rule: str = "floor"
+    card_name: str = Field(min_length=1, max_length=120)
+    bank_name: str = Field(min_length=1, max_length=120)
+    billing_day: Optional[int] = Field(default=None, ge=1, le=28)
+    cashback_type: Literal["fixed", "tiered"] = "fixed"
+    fixed_rate: Optional[float] = Field(default=None, ge=0)
+    monthly_cap: Optional[float] = Field(default=None, ge=0)
+    calc_method: Literal["per_transaction", "aggregate"] = "per_transaction"
+    rounding_rule: Literal["floor", "round"] = "floor"
 
 
 class CardCreate(CardBase):
@@ -55,8 +61,8 @@ class CardOut(CardBase):
 
 class TransactionBase(BaseModel):
     card_id: int
-    amount: float
-    note: Optional[str] = None
+    amount: float = Field(gt=0)
+    note: Optional[str] = Field(default=None, max_length=500)
     transaction_date: date
 
 
@@ -66,8 +72,8 @@ class TransactionCreate(TransactionBase):
 
 class TransactionUpdate(BaseModel):
     card_id: Optional[int] = None
-    amount: Optional[float] = None
-    note: Optional[str] = None
+    amount: Optional[float] = Field(default=None, gt=0)
+    note: Optional[str] = Field(default=None, max_length=500)
     transaction_date: Optional[date] = None
 
 
@@ -101,6 +107,7 @@ class DashboardSummary(BaseModel):
 # --- Export ---
 
 class ExportRequest(BaseModel):
-    month: Optional[str] = None  # YYYY-MM format
-    credentials_json: Optional[str] = None  # path to service account JSON
-    spreadsheet_name: Optional[str] = "Cashback Report"
+    month: Optional[str] = Field(default=None, pattern=r"^\d{4}-(0[1-9]|1[0-2])$")  # YYYY-MM format
+    spreadsheet_name: Optional[str] = Field(default="Cashback Report", min_length=1, max_length=100)
+
+    model_config = {"extra": "forbid"}

@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from .. import models, schemas
 from ..database import get_db
+from ..services.cashback import recalculate_cashback_cycle
 
 router = APIRouter()
 
@@ -52,6 +53,8 @@ def update_card(card_id: int, card_in: schemas.CardUpdate, db: Session = Depends
     if not card:
         raise HTTPException(status_code=404, detail="Card not found")
 
+    affected_dates = {txn.transaction_date for txn in card.transactions}
+
     card.card_name = card_in.card_name
     card.bank_name = card_in.bank_name
     card.billing_day = card_in.billing_day
@@ -71,6 +74,10 @@ def update_card(card_id: int, card_in: schemas.CardUpdate, db: Session = Depends
                 rate=tier_in.rate,
             )
         )
+
+    db.flush()
+    for transaction_date in affected_dates:
+        recalculate_cashback_cycle(db, card, transaction_date)
 
     db.commit()
     db.refresh(card)

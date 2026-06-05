@@ -114,6 +114,37 @@ def calculate_cashback_per_tx(
     return raw
 
 
+def recalculate_per_transaction(db: Session, card: models.Card, ref_date: date) -> None:
+    """Recalculate per-transaction cashback for a billing cycle in transaction order."""
+    start, end = get_billing_cycle_range(card.billing_day, ref_date)
+    txns = (
+        db.query(models.Transaction)
+        .filter(
+            models.Transaction.card_id == card.id,
+            models.Transaction.transaction_date >= start,
+            models.Transaction.transaction_date <= end,
+        )
+        .order_by(models.Transaction.transaction_date, models.Transaction.id)
+        .all()
+    )
+
+    spent_so_far = 0.0
+    cashback_used = 0.0
+    for txn in txns:
+        if card.cashback_type == "fixed":
+            raw = _calc_fixed_cashback(txn.amount, card.fixed_rate or 0)
+        else:
+            raw = _calc_tiered_cashback(txn.amount, card.tiers, spent_so_far)
+
+        raw = _apply_rounding(raw, card.rounding_rule or "floor")
+        if card.monthly_cap is not None and cashback_used + raw > card.monthly_cap:
+            raw = max(0, card.monthly_cap - cashback_used)
+
+        txn.cashback = raw
+        spent_so_far += txn.amount
+        cashback_used += raw
+
+
 def recalculate_aggregate(db: Session, card: models.Card, ref_date: date) -> None:
     """Recalculate all transaction cashbacks for the entire billing cycle in aggregate mode."""
     start, end = get_billing_cycle_range(card.billing_day, ref_date)
@@ -156,3 +187,10 @@ def recalculate_aggregate(db: Session, card: models.Card, ref_date: date) -> Non
             share = round(raw_total * (t.amount / total_amount), 2)
             t.cashback = share
             distributed += share
+
+
+def recalculate_cashback_cycle(db: Session, card: models.Card, ref_date: date) -> None:
+    if card.calc_method == "aggregate":
+        recalculate_aggregate(db, card, ref_date)
+    else:
+        recalculate_per_transaction(db, card, ref_date)
