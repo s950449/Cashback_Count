@@ -118,6 +118,8 @@ Swagger API 文件：`http://localhost:8000/docs`
 | amount | REAL | 消費金額 |
 | cashback | REAL | 計算後的回饋金額 |
 | note | TEXT | 備註 |
+| merchant | TEXT | 商店名稱 |
+| category | TEXT | 消費分類 |
 | transaction_date | DATE | 消費日期 |
 
 ## API 端點
@@ -135,6 +137,7 @@ DELETE /api/cards/{id}         # 刪除卡片
 ```
 GET    /api/transactions                # 列出記錄 (?card_id=&month= 篩選)
 POST   /api/transactions               # 新增消費記錄 (自動計算 cashback)
+POST   /api/transactions/import-csv    # 匯入 CSV (card_id, amount, transaction_date, note)
 PUT    /api/transactions/{id}          # 更新記錄
 DELETE /api/transactions/{id}          # 刪除記錄
 ```

@@ -38,6 +38,8 @@ export interface Transaction {
   amount: number;
   cashback: number | null;
   note: string | null;
+  merchant: string | null;
+  category: string | null;
   transaction_date: string;
   created_at: string | null;
 }
@@ -46,6 +48,8 @@ export interface TransactionFormData {
   card_id: number;
   amount: number;
   note: string;
+  merchant: string;
+  category: string;
   transaction_date: string;
 }
 

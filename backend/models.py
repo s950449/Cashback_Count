@@ -43,6 +43,8 @@ class Transaction(Base):
     amount = Column(Float, nullable=False)
     cashback = Column(Float)
     note = Column(Text)
+    merchant = Column(Text)
+    category = Column(Text)
     transaction_date = Column(Date, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 

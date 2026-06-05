@@ -15,6 +15,8 @@ function getInitialForm(cards: Card[], transaction?: Transaction | null): Transa
       card_id: transaction.card_id,
       amount: transaction.amount,
       note: transaction.note ?? '',
+      merchant: transaction.merchant ?? '',
+      category: transaction.category ?? '',
       transaction_date: transaction.transaction_date,
     };
   }
@@ -24,6 +26,8 @@ function getInitialForm(cards: Card[], transaction?: Transaction | null): Transa
     card_id: cards[0]?.id ?? 0,
     amount: 0,
     note: '',
+    merchant: '',
+    category: '',
     transaction_date: today,
   };
 }
@@ -52,7 +56,7 @@ export default function TransactionForm({
     if (!selectedCardId || form.amount <= 0 || isSubmitting) return;
     onSubmit({ ...form, card_id: selectedCardId });
     if (!isEditing) {
-      setForm({ ...form, card_id: selectedCardId, amount: 0, note: '' });
+      setForm({ ...form, card_id: selectedCardId, amount: 0, note: '', merchant: '', category: '' });
     }
   };
 
@@ -103,6 +107,24 @@ export default function TransactionForm({
           value={form.transaction_date}
           onChange={(e) => setForm({ ...form, transaction_date: e.target.value })}
           required
+        />
+      </div>
+      <div style={rowStyle}>
+        <label style={labelStyle}>商店</label>
+        <input
+          style={inputStyle}
+          value={form.merchant}
+          onChange={(e) => setForm({ ...form, merchant: e.target.value })}
+          placeholder="選填"
+        />
+      </div>
+      <div style={rowStyle}>
+        <label style={labelStyle}>分類</label>
+        <input
+          style={inputStyle}
+          value={form.category}
+          onChange={(e) => setForm({ ...form, category: e.target.value })}
+          placeholder="例如：餐飲、交通、日用品"
         />
       </div>
       <div style={rowStyle}>

@@ -63,6 +63,8 @@ class TransactionBase(BaseModel):
     card_id: int
     amount: float = Field(gt=0)
     note: Optional[str] = Field(default=None, max_length=500)
+    merchant: Optional[str] = Field(default=None, max_length=120)
+    category: Optional[str] = Field(default=None, max_length=120)
     transaction_date: date
 
 
@@ -74,6 +76,8 @@ class TransactionUpdate(BaseModel):
     card_id: Optional[int] = None
     amount: Optional[float] = Field(default=None, gt=0)
     note: Optional[str] = Field(default=None, max_length=500)
+    merchant: Optional[str] = Field(default=None, max_length=120)
+    category: Optional[str] = Field(default=None, max_length=120)
     transaction_date: Optional[date] = None
 
 

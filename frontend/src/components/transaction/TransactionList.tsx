@@ -20,6 +20,8 @@ export default function TransactionList({ transactions, cards, onEdit, onDelete 
         <tr>
           <th style={thStyle}>日期</th>
           <th style={thStyle}>卡片</th>
+          <th style={thStyle}>商店</th>
+          <th style={thStyle}>分類</th>
           <th style={{ ...thStyle, textAlign: 'right' }}>金額</th>
           <th style={{ ...thStyle, textAlign: 'right' }}>回饋</th>
           <th style={thStyle}>備註</th>
@@ -35,6 +37,8 @@ export default function TransactionList({ transactions, cards, onEdit, onDelete 
               <td style={tdStyle}>
                 {card ? `${card.bank_name} - ${card.card_name}` : `卡片 #${t.card_id}`}
               </td>
+              <td style={tdStyle}>{t.merchant || '-'}</td>
+              <td style={tdStyle}>{t.category || '-'}</td>
               <td style={{ ...tdStyle, textAlign: 'right' }}>
                 ${t.amount.toLocaleString()}
               </td>

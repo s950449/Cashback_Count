@@ -137,7 +137,7 @@ export default function TransactionPage() {
       <section style={importPanel}>
         <div>
           <h2 style={sectionTitle}>CSV 匯入</h2>
-          <p style={helperText}>固定欄位：card_id, amount, transaction_date, note</p>
+          <p style={helperText}>必要欄位：card_id, amount, transaction_date, note；可選欄位：merchant, category</p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <input

@@ -235,6 +235,35 @@ def test_transaction_validation_rejects_oversized_note(client):
     assert response.status_code == 422
 
 
+def test_transaction_create_and_update_preserve_merchant_and_category(client):
+    card = create_card(client)
+
+    created = client.post(
+        "/api/transactions",
+        json={
+            "card_id": card["id"],
+            "amount": 100,
+            "note": "weekly groceries",
+            "merchant": "PX Mart",
+            "category": "grocery",
+            "transaction_date": "2026-06-05",
+        },
+    )
+
+    assert created.status_code == 201, created.text
+    assert created.json()["merchant"] == "PX Mart"
+    assert created.json()["category"] == "grocery"
+
+    updated = client.put(
+        f"/api/transactions/{created.json()['id']}",
+        json={"merchant": "Carrefour", "category": "household"},
+    )
+
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["merchant"] == "Carrefour"
+    assert updated.json()["category"] == "household"
+
+
 def test_import_transactions_csv_creates_rows_and_recalculates_cashback(client):
     card = create_card(client, fixed_rate=0.02)
 
@@ -254,6 +283,25 @@ def test_import_transactions_csv_creates_rows_and_recalculates_cashback(client):
     txns = client.get("/api/transactions", params={"month": "2026-06"}).json()
     assert [txn["amount"] for txn in reversed(txns)] == [1000, 500]
     assert sum(txn["cashback"] for txn in txns) == 30
+
+
+def test_import_transactions_csv_accepts_optional_merchant_and_category(client):
+    card = create_card(client)
+
+    response = client.post(
+        "/api/transactions/import-csv",
+        json={
+            "csv_text": (
+                "card_id,amount,transaction_date,note,merchant,category\n"
+                f"{card['id']},120,2026-06-01,coffee,Local Cafe,food\n"
+            )
+        },
+    )
+
+    assert response.status_code == 201, response.text
+    imported = response.json()["transactions"][0]
+    assert imported["merchant"] == "Local Cafe"
+    assert imported["category"] == "food"
 
 
 def test_import_transactions_csv_rejects_missing_required_columns(client):

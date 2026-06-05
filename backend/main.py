@@ -1,10 +1,27 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import inspect, text
 
 from .database import engine, Base
 from .routers import cards, transactions, dashboard, export
 
 Base.metadata.create_all(bind=engine)
+
+
+def ensure_sqlite_schema():
+    inspector = inspect(engine)
+    if "transactions" not in inspector.get_table_names():
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("transactions")}
+    with engine.begin() as conn:
+        if "merchant" not in existing_columns:
+            conn.execute(text("ALTER TABLE transactions ADD COLUMN merchant TEXT"))
+        if "category" not in existing_columns:
+            conn.execute(text("ALTER TABLE transactions ADD COLUMN category TEXT"))
+
+
+ensure_sqlite_schema()
 
 app = FastAPI(title="Cashback Count API", version="1.0.0")
 

@@ -36,6 +36,8 @@ def _parse_import_csv(csv_text: str) -> list[schemas.TransactionCreate]:
                     amount=float((row.get("amount") or "").strip()),
                     transaction_date=date.fromisoformat((row.get("transaction_date") or "").strip()),
                     note=(row.get("note") or "").strip() or None,
+                    merchant=(row.get("merchant") or "").strip() or None,
+                    category=(row.get("category") or "").strip() or None,
                 )
             )
         except (ValueError, ValidationError) as exc:
@@ -74,6 +76,8 @@ def create_transaction(txn_in: schemas.TransactionCreate, db: Session = Depends(
         card_id=txn_in.card_id,
         amount=txn_in.amount,
         note=txn_in.note,
+        merchant=txn_in.merchant,
+        category=txn_in.category,
         transaction_date=txn_in.transaction_date,
     )
 
@@ -104,6 +108,8 @@ def import_transactions_csv(req: schemas.TransactionImportCsvRequest, db: Sessio
             card_id=row.card_id,
             amount=row.amount,
             note=row.note,
+            merchant=row.merchant,
+            category=row.category,
             transaction_date=row.transaction_date,
         )
         for row in rows
@@ -141,6 +147,10 @@ def update_transaction(txn_id: int, txn_in: schemas.TransactionUpdate, db: Sessi
         txn.amount = txn_in.amount
     if txn_in.note is not None:
         txn.note = txn_in.note
+    if txn_in.merchant is not None:
+        txn.merchant = txn_in.merchant
+    if txn_in.category is not None:
+        txn.category = txn_in.category
     if txn_in.transaction_date is not None:
         txn.transaction_date = txn_in.transaction_date
 
