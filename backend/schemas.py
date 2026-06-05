@@ -116,6 +116,8 @@ class CategorySummary(BaseModel):
     total_cashback: float
     transaction_count: int
     cashback_rate: float
+    monthly_budget: Optional[float] = None
+    budget_usage_pct: Optional[float] = None
 
 
 class DashboardSummary(BaseModel):
@@ -124,6 +126,28 @@ class DashboardSummary(BaseModel):
     total_cashback: float
     cards: list[CardSummary]
     categories: list[CategorySummary]
+
+
+# --- Category Budget ---
+
+class CategoryBudgetBase(BaseModel):
+    category: str = Field(min_length=1, max_length=120)
+    monthly_budget: float = Field(gt=0)
+
+
+class CategoryBudgetCreate(CategoryBudgetBase):
+    pass
+
+
+class CategoryBudgetUpdate(CategoryBudgetBase):
+    pass
+
+
+class CategoryBudgetOut(CategoryBudgetBase):
+    id: int
+    created_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
 
 
 # --- Export ---

@@ -170,6 +170,8 @@ def test_dashboard_summary_includes_category_breakdown(client):
             "total_cashback": 20,
             "transaction_count": 1,
             "cashback_rate": 0.02,
+            "monthly_budget": None,
+            "budget_usage_pct": None,
         },
         {
             "category": "交通",
@@ -177,6 +179,8 @@ def test_dashboard_summary_includes_category_breakdown(client):
             "total_cashback": 10,
             "transaction_count": 1,
             "cashback_rate": 0.02,
+            "monthly_budget": None,
+            "budget_usage_pct": None,
         },
         {
             "category": "未分類",
@@ -184,8 +188,71 @@ def test_dashboard_summary_includes_category_breakdown(client):
             "total_cashback": 4,
             "transaction_count": 1,
             "cashback_rate": 0.02,
+            "monthly_budget": None,
+            "budget_usage_pct": None,
         },
     ]
+
+
+def test_category_budget_crud(client):
+    created = client.post(
+        "/api/category-budgets",
+        json={"category": "餐飲", "monthly_budget": 8000},
+    )
+
+    assert created.status_code == 201, created.text
+    assert created.json()["category"] == "餐飲"
+    assert created.json()["monthly_budget"] == 8000
+
+    listed = client.get("/api/category-budgets")
+    assert listed.status_code == 200, listed.text
+    assert listed.json() == [created.json()]
+
+    updated = client.put(
+        f"/api/category-budgets/{created.json()['id']}",
+        json={"category": "餐飲", "monthly_budget": 9000},
+    )
+
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["monthly_budget"] == 9000
+
+    deleted = client.delete(f"/api/category-budgets/{created.json()['id']}")
+    assert deleted.status_code == 204
+    assert client.get("/api/category-budgets").json() == []
+
+
+def test_category_budget_rejects_duplicate_category(client):
+    first = client.post(
+        "/api/category-budgets",
+        json={"category": "交通", "monthly_budget": 3000},
+    )
+    assert first.status_code == 201, first.text
+
+    duplicate = client.post(
+        "/api/category-budgets",
+        json={"category": "交通", "monthly_budget": 4000},
+    )
+
+    assert duplicate.status_code == 409
+
+
+def test_dashboard_summary_includes_category_budget_usage(client):
+    card = create_card(client, fixed_rate=0.02)
+    create_transaction(client, card["id"], 1000, transaction_date="2026-06-01")
+    client.put("/api/transactions/1", json={"category": "餐飲"})
+    budget = client.post(
+        "/api/category-budgets",
+        json={"category": "餐飲", "monthly_budget": 4000},
+    )
+    assert budget.status_code == 201, budget.text
+
+    response = client.get("/api/dashboard/summary", params={"month": "2026-06"})
+
+    assert response.status_code == 200, response.text
+    category = response.json()["categories"][0]
+    assert category["category"] == "餐飲"
+    assert category["monthly_budget"] == 4000
+    assert category["budget_usage_pct"] == 25.0
 
 
 def test_export_rejects_request_supplied_credentials_path(client):

@@ -74,6 +74,8 @@ export interface CategorySummary {
   total_cashback: number;
   transaction_count: number;
   cashback_rate: number;
+  monthly_budget: number | null;
+  budget_usage_pct: number | null;
 }
 
 export interface DashboardSummary {
@@ -82,4 +84,16 @@ export interface DashboardSummary {
   total_cashback: number;
   cards: CardSummary[];
   categories: CategorySummary[];
+}
+
+export interface CategoryBudget {
+  id: number;
+  category: string;
+  monthly_budget: number;
+  created_at: string | null;
+}
+
+export interface CategoryBudgetFormData {
+  category: string;
+  monthly_budget: number;
 }

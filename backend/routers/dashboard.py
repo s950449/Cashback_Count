@@ -16,6 +16,8 @@ def get_summary(
     start, end = parse_month_range(month)
 
     cards = db.query(models.Card).order_by(models.Card.id).all()
+    budgets = db.query(models.CategoryBudget).order_by(models.CategoryBudget.category).all()
+    budget_by_category = {budget.category: budget.monthly_budget for budget in budgets}
     card_summaries = []
     category_totals = {}
     total_spent = 0.0
@@ -71,6 +73,7 @@ def get_summary(
     ):
         spent = totals["total_spent"]
         cashback = totals["total_cashback"]
+        monthly_budget = budget_by_category.get(category)
         category_summaries.append(
             schemas.CategorySummary(
                 category=category,
@@ -78,6 +81,8 @@ def get_summary(
                 total_cashback=cashback,
                 transaction_count=totals["transaction_count"],
                 cashback_rate=round(cashback / spent, 4) if spent > 0 else 0,
+                monthly_budget=monthly_budget,
+                budget_usage_pct=round(spent / monthly_budget * 100, 1) if monthly_budget else None,
             )
         )
 

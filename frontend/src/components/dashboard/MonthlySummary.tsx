@@ -54,6 +54,8 @@ export default function MonthlySummary({ summary, loading }: Props) {
               <th style={{ ...thStyle, textAlign: 'right' }}>回饋</th>
               <th style={{ ...thStyle, textAlign: 'right' }}>筆數</th>
               <th style={{ ...thStyle, textAlign: 'right' }}>回饋率</th>
+              <th style={{ ...thStyle, textAlign: 'right' }}>預算</th>
+              <th style={{ ...thStyle, textAlign: 'right' }}>使用率</th>
             </tr>
           </thead>
           <tbody>
@@ -69,6 +71,23 @@ export default function MonthlySummary({ summary, loading }: Props) {
                 <td style={{ ...tdStyle, textAlign: 'right' }}>{category.transaction_count}</td>
                 <td style={{ ...tdStyle, textAlign: 'right' }}>
                   {(category.cashback_rate * 100).toFixed(2)}%
+                </td>
+                <td style={{ ...tdStyle, textAlign: 'right' }}>
+                  {category.monthly_budget != null ? `$${category.monthly_budget.toLocaleString()}` : '-'}
+                </td>
+                <td
+                  style={{
+                    ...tdStyle,
+                    textAlign: 'right',
+                    color:
+                      category.budget_usage_pct != null && category.budget_usage_pct >= 100
+                        ? '#b91c1c'
+                        : '#213547',
+                    fontWeight:
+                      category.budget_usage_pct != null && category.budget_usage_pct >= 100 ? 600 : 400,
+                  }}
+                >
+                  {category.budget_usage_pct != null ? `${category.budget_usage_pct.toFixed(1)}%` : '-'}
                 </td>
               </tr>
             ))}

@@ -6,6 +6,8 @@ import type {
   TransactionFormData,
   TransactionImportResult,
   DashboardSummary,
+  CategoryBudget,
+  CategoryBudgetFormData,
 } from '../types';
 
 const api = axios.create({
@@ -85,4 +87,28 @@ export async function exportToGoogleSheets(params: {
 }): Promise<{ status: string; url: string }> {
   const res = await api.post('/export/google-sheets', params);
   return res.data;
+}
+
+// --- Category Budgets ---
+
+export async function fetchCategoryBudgets(): Promise<CategoryBudget[]> {
+  const res = await api.get('/category-budgets');
+  return res.data;
+}
+
+export async function createCategoryBudget(data: CategoryBudgetFormData): Promise<CategoryBudget> {
+  const res = await api.post('/category-budgets', data);
+  return res.data;
+}
+
+export async function updateCategoryBudget(
+  id: number,
+  data: CategoryBudgetFormData
+): Promise<CategoryBudget> {
+  const res = await api.put(`/category-budgets/${id}`, data);
+  return res.data;
+}
+
+export async function deleteCategoryBudget(id: number): Promise<void> {
+  await api.delete(`/category-budgets/${id}`);
 }

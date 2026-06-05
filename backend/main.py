@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import inspect, text
 
 from .database import engine, Base
-from .routers import cards, transactions, dashboard, export
+from .routers import cards, transactions, dashboard, export, category_budgets
 
 Base.metadata.create_all(bind=engine)
 
@@ -66,6 +66,7 @@ app.include_router(cards.router, prefix="/api/cards", tags=["cards"])
 app.include_router(transactions.router, prefix="/api/transactions", tags=["transactions"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["dashboard"])
 app.include_router(export.router, prefix="/api/export", tags=["export"])
+app.include_router(category_budgets.router, prefix="/api/category-budgets", tags=["category-budgets"])
 
 
 @app.get("/")

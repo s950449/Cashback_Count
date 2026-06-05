@@ -49,3 +49,12 @@ class Transaction(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     card = relationship("Card", back_populates="transactions")
+
+
+class CategoryBudget(Base):
+    __tablename__ = "category_budgets"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    category = Column(Text, nullable=False)
+    monthly_budget = Column(Float, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

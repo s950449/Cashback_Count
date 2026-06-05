@@ -8,7 +8,7 @@
 - 自動計算回饋：固定回饋率 / 分級累進回饋（類似累進稅率）
 - 四種計算模式：逐筆 or 合併 × 四捨五入 or 無條件捨去
 - 月度上限追蹤：即時顯示回饋上限使用進度
-- 儀表板：月度消費與回饋摘要、分類統計、各卡明細
+- 儀表板：月度消費與回饋摘要、分類統計、分類預算追蹤、各卡明細
 - Google Sheets 匯出
 
 ## Tech Stack
@@ -122,6 +122,13 @@ Swagger API 文件：`http://localhost:8000/docs`
 | category | TEXT | 消費分類 |
 | transaction_date | DATE | 消費日期 |
 
+### category_budgets 表
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INTEGER PK | 自動遞增 |
+| category | TEXT | 消費分類 |
+| monthly_budget | REAL | 每月預算 |
+
 ## API 端點
 
 ### 卡片管理
@@ -145,6 +152,14 @@ DELETE /api/transactions/{id}          # 刪除記錄
 ### 儀表板
 ```
 GET    /api/dashboard/summary?month=YYYY-MM   # 月度摘要
+```
+
+### 分類預算
+```
+GET    /api/category-budgets          # 列出分類預算
+POST   /api/category-budgets          # 新增分類預算
+PUT    /api/category-budgets/{id}     # 更新分類預算
+DELETE /api/category-budgets/{id}     # 刪除分類預算
 ```
 
 ### 匯出
