@@ -26,12 +26,30 @@ function buildEmptyRule(cardId: number): RewardRuleFormData {
     start_date: null,
     end_date: null,
     payment_methods: null,
+    stacking_mode: 'stackable',
+    exclusive_group: null,
+    merchant_keywords: null,
+    category_names: null,
     tiers: [],
   };
 }
 
+function joinList(values: string[] | null): string {
+  return values?.join(', ') ?? '';
+}
+
+function splitList(value: string): string[] | null {
+  const values = value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+  return values.length > 0 ? values : null;
+}
+
 export default function RewardRuleFormModal({ card, rule, onSave, onClose, isSaving = false }: Props) {
   const [form, setForm] = useState<RewardRuleFormData>(() => buildEmptyRule(card.id));
+  const [merchantKeywordsText, setMerchantKeywordsText] = useState('');
+  const [categoryNamesText, setCategoryNamesText] = useState('');
 
   useEffect(() => {
     if (rule) {
@@ -49,14 +67,22 @@ export default function RewardRuleFormModal({ card, rule, onSave, onClose, isSav
         start_date: rule.start_date,
         end_date: rule.end_date,
         payment_methods: rule.payment_methods,
+        stacking_mode: rule.stacking_mode,
+        exclusive_group: rule.exclusive_group,
+        merchant_keywords: rule.merchant_keywords,
+        category_names: rule.category_names,
         tiers: rule.tiers.map((tier) => ({
           min_amount: tier.min_amount,
           max_amount: tier.max_amount,
           rate: tier.rate,
         })),
       });
+      setMerchantKeywordsText(joinList(rule.merchant_keywords));
+      setCategoryNamesText(joinList(rule.category_names));
     } else {
       setForm(buildEmptyRule(card.id));
+      setMerchantKeywordsText('');
+      setCategoryNamesText('');
     }
   }, [card.id, rule]);
 
@@ -70,6 +96,9 @@ export default function RewardRuleFormModal({ card, rule, onSave, onClose, isSav
       end_date: form.end_date || null,
       fixed_rate: form.cashback_type === 'fixed' ? form.fixed_rate : null,
       payment_methods: form.payment_methods && form.payment_methods.length > 0 ? form.payment_methods : null,
+      exclusive_group: form.stacking_mode === 'exclusive' ? form.exclusive_group?.trim() || null : null,
+      merchant_keywords: splitList(merchantKeywordsText),
+      category_names: splitList(categoryNamesText),
       tiers: form.cashback_type === 'tiered' ? form.tiers : [],
     });
   };
@@ -149,6 +178,37 @@ export default function RewardRuleFormModal({ card, rule, onSave, onClose, isSav
                 啟用此規則
               </label>
             </div>
+          </div>
+
+          <div style={gridStyle}>
+            <div style={rowStyle}>
+              <label style={labelStyle}>疊加方式</label>
+              <select
+                value={form.stacking_mode}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    stacking_mode: e.target.value as RewardRuleFormData['stacking_mode'],
+                  })
+                }
+                style={inputStyle}
+              >
+                <option value="stackable">可與其他規則疊加</option>
+                <option value="exclusive">同群組擇優</option>
+              </select>
+            </div>
+            {form.stacking_mode === 'exclusive' && (
+              <div style={rowStyle}>
+                <label style={labelStyle}>擇優群組</label>
+                <input
+                  value={form.exclusive_group ?? ''}
+                  onChange={(e) => setForm({ ...form, exclusive_group: e.target.value })}
+                  style={inputStyle}
+                  maxLength={120}
+                  placeholder="例如：transport_bonus"
+                />
+              </div>
+            )}
           </div>
 
           <div style={gridStyle}>
@@ -283,6 +343,27 @@ export default function RewardRuleFormModal({ card, rule, onSave, onClose, isSav
                   {method}
                 </label>
               ))}
+            </div>
+          </div>
+
+          <div style={gridStyle}>
+            <div style={rowStyle}>
+              <label style={labelStyle}>店家關鍵字</label>
+              <input
+                value={merchantKeywordsText}
+                onChange={(e) => setMerchantKeywordsText(e.target.value)}
+                style={inputStyle}
+                placeholder="例如：台鐵, 高鐵"
+              />
+            </div>
+            <div style={rowStyle}>
+              <label style={labelStyle}>分類條件</label>
+              <input
+                value={categoryNamesText}
+                onChange={(e) => setCategoryNamesText(e.target.value)}
+                style={inputStyle}
+                placeholder="例如：交通, 旅遊"
+              />
             </div>
           </div>
 

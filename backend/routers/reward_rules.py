@@ -77,6 +77,10 @@ def create_reward_rule(rule_in: schemas.RewardRuleCreate, db: Session = Depends(
         start_date=rule_in.start_date,
         end_date=rule_in.end_date,
         payment_methods=rule_in.payment_methods,
+        stacking_mode=rule_in.stacking_mode,
+        exclusive_group=rule_in.exclusive_group,
+        merchant_keywords=rule_in.merchant_keywords,
+        category_names=rule_in.category_names,
     )
     _replace_tiers(rule, rule_in.tiers)
 
@@ -112,6 +116,10 @@ def update_reward_rule(rule_id: int, rule_in: schemas.RewardRuleUpdate, db: Sess
     rule.start_date = rule_in.start_date
     rule.end_date = rule_in.end_date
     rule.payment_methods = rule_in.payment_methods
+    rule.stacking_mode = rule_in.stacking_mode
+    rule.exclusive_group = rule_in.exclusive_group
+    rule.merchant_keywords = rule_in.merchant_keywords
+    rule.category_names = rule_in.category_names
     _replace_tiers(rule, rule_in.tiers)
 
     db.flush()

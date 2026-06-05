@@ -93,6 +93,10 @@ def create_reward_rule(client, card_id, **overrides):
         "start_date": None,
         "end_date": None,
         "payment_methods": None,
+        "stacking_mode": "stackable",
+        "exclusive_group": None,
+        "merchant_keywords": None,
+        "category_names": None,
         "tiers": [],
     }
     payload.update(overrides)
@@ -608,6 +612,108 @@ def test_import_transactions_csv_accepts_payment_method(client):
     imported = response.json()["transactions"][0]
     assert imported["payment_method"] == "臺灣Pay"
     assert imported["cashback"] == 50
+
+
+def test_exclusive_reward_rules_choose_best_bonus_in_group(client):
+    card = create_card(client, fixed_rate=0)
+    create_reward_rule(
+        client,
+        card["id"],
+        rule_name="基本回饋",
+        reward_kind="base",
+        fixed_rate=0.01,
+    )
+    create_reward_rule(
+        client,
+        card["id"],
+        rule_name="台鐵加碼",
+        reward_kind="campaign_bonus",
+        fixed_rate=0.04,
+        stacking_mode="exclusive",
+        exclusive_group="transport_bonus",
+        merchant_keywords=["台鐵"],
+    )
+    create_reward_rule(
+        client,
+        card["id"],
+        rule_name="Apple Pay 加碼",
+        reward_kind="campaign_bonus",
+        fixed_rate=0.02,
+        stacking_mode="exclusive",
+        exclusive_group="transport_bonus",
+        payment_methods=["Apple Pay"],
+    )
+
+    txn = create_transaction(
+        client,
+        card["id"],
+        1000,
+        merchant="台鐵",
+        payment_method="Apple Pay",
+    )
+
+    assert txn["cashback"] == 50
+
+
+def test_exclusive_reward_groups_stack_with_each_other(client):
+    card = create_card(client, fixed_rate=0)
+    create_reward_rule(
+        client,
+        card["id"],
+        rule_name="台鐵擇優加碼",
+        reward_kind="campaign_bonus",
+        fixed_rate=0.04,
+        stacking_mode="exclusive",
+        exclusive_group="transport_bonus",
+        merchant_keywords=["台鐵"],
+    )
+    create_reward_rule(
+        client,
+        card["id"],
+        rule_name="週末擇優加碼",
+        reward_kind="campaign_bonus",
+        fixed_rate=0.03,
+        stacking_mode="exclusive",
+        exclusive_group="weekend_bonus",
+        payment_methods=["Apple Pay"],
+    )
+
+    txn = create_transaction(
+        client,
+        card["id"],
+        1000,
+        merchant="台鐵",
+        payment_method="Apple Pay",
+    )
+
+    assert txn["cashback"] == 70
+
+
+def test_stackable_reward_rules_continue_to_add_together(client):
+    card = create_card(client, fixed_rate=0)
+    create_reward_rule(client, card["id"], fixed_rate=0.01)
+    create_reward_rule(
+        client,
+        card["id"],
+        fixed_rate=0.02,
+        payment_methods=["Apple Pay"],
+    )
+    create_reward_rule(
+        client,
+        card["id"],
+        fixed_rate=0.03,
+        merchant_keywords=["台鐵"],
+    )
+
+    txn = create_transaction(
+        client,
+        card["id"],
+        1000,
+        merchant="台鐵",
+        payment_method="Apple Pay",
+    )
+
+    assert txn["cashback"] == 60
 
 
 def test_dashboard_summary_includes_category_budget_usage(client):

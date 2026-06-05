@@ -127,6 +127,10 @@ Swagger API 文件：`http://localhost:8000/docs`
 | start_date | DATE | 活動起始日 (NULL = 不限制) |
 | end_date | DATE | 活動結束日 (NULL = 不限制) |
 | payment_methods | JSON | 適用支付工具清單 (NULL = 不限制) |
+| stacking_mode | TEXT | `stackable` / `exclusive` |
+| exclusive_group | TEXT | 擇優群組名稱 |
+| merchant_keywords | JSON | 適用店家關鍵字清單 (NULL = 不限制) |
+| category_names | JSON | 適用分類清單 (NULL = 不限制) |
 
 ### reward_rule_tiers 表
 | Column | Type | Description |
@@ -216,6 +220,8 @@ POST   /api/export/google-sheets       # 匯出至 Google Sheets
 `reward_kind` 可用來拆分基本回饋、任務加碼、活動回饋與其他加碼；這些規則不會先合併 rate 或上限，而是分別計算後加總。
 
 `reward_rules.payment_methods` 可限制支付工具加碼，例如 Apple Pay、Google Pay、臺灣行動支付、臺灣Pay、Line Pay、街口支付、iCash Pay、iPass Money、全支付、悠遊付；未設定時代表不限支付工具。
+
+`stacking_mode` 控制是否可疊加：`stackable` 規則會全部加總；`exclusive` 規則會依 `exclusive_group` 分組，同一群組內同一筆交易只取最高回饋。`merchant_keywords` 與 `category_names` 可限制特殊店家或分類加碼，例如台鐵加碼與 Apple Pay 加碼同群組擇優。
 
 每張卡由兩個維度組合出 4 種計算模式：
 

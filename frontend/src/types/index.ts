@@ -82,6 +82,10 @@ export interface RewardRule {
   start_date: string | null;
   end_date: string | null;
   payment_methods: PaymentMethod[] | null;
+  stacking_mode: 'stackable' | 'exclusive';
+  exclusive_group: string | null;
+  merchant_keywords: string[] | null;
+  category_names: string[] | null;
   tiers: RewardRuleTier[];
   created_at: string | null;
 }
@@ -100,6 +104,10 @@ export interface RewardRuleFormData {
   start_date: string | null;
   end_date: string | null;
   payment_methods: PaymentMethod[] | null;
+  stacking_mode: 'stackable' | 'exclusive';
+  exclusive_group: string | null;
+  merchant_keywords: string[] | null;
+  category_names: string[] | null;
   tiers: Omit<RewardRuleTier, 'id' | 'reward_rule_id'>[];
 }
 

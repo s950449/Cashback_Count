@@ -19,6 +19,11 @@ const cycleLabels: Record<RewardRule['cycle_type'], string> = {
   calendar_month: '日曆月',
 };
 
+const stackingLabels: Record<RewardRule['stacking_mode'], string> = {
+  stackable: '可疊加',
+  exclusive: '擇優',
+};
+
 export default function RewardRuleList({ rules, onAdd, onEdit, onDelete }: Props) {
   return (
     <div style={containerStyle}>
@@ -48,10 +53,21 @@ export default function RewardRuleList({ rules, onAdd, onEdit, onDelete }: Props
                   {rule.calc_method === 'per_transaction' ? '逐筆' : '合併'}
                   {' | '}
                   {rule.rounding_rule === 'floor' ? '無條件捨去' : '四捨五入'}
+                  {' | '}
+                  {stackingLabels[rule.stacking_mode]}
+                  {rule.stacking_mode === 'exclusive' && rule.exclusive_group
+                    ? ` (${rule.exclusive_group})`
+                    : ''}
                   {rule.monthly_cap != null && ` | 上限 $${rule.monthly_cap.toLocaleString()}`}
                   {rule.payment_methods?.length
                     ? ` | ${rule.payment_methods.join('、')}`
                     : ' | 不限支付工具'}
+                  {rule.merchant_keywords?.length
+                    ? ` | 店家：${rule.merchant_keywords.join('、')}`
+                    : ''}
+                  {rule.category_names?.length
+                    ? ` | 分類：${rule.category_names.join('、')}`
+                    : ''}
                 </div>
                 {(rule.start_date || rule.end_date) && (
                   <div style={dateStyle}>

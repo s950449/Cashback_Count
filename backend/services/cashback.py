@@ -93,6 +93,13 @@ def _reward_rule_matches_transaction(rule: models.RewardRule, txn: models.Transa
         return False
     if rule.payment_methods:
         return txn.payment_method in rule.payment_methods
+    if rule.merchant_keywords:
+        merchant = txn.merchant or ""
+        if not any(keyword in merchant for keyword in rule.merchant_keywords):
+            return False
+    if rule.category_names:
+        if txn.category not in rule.category_names:
+            return False
     return True
 
 
@@ -283,8 +290,10 @@ def recalculate_reward_rules(db: Session, card: models.Card, ref_date: date) -> 
         .all()
     )
     cashback_by_txn_id = {txn.id: 0.0 for txn in txns}
+    exclusive_by_group_and_txn_id: dict[str, dict[int, float]] = {}
 
     for rule in rules:
+        rule_cashback_by_txn_id = {txn.id: 0.0 for txn in txns}
         txns_by_cycle: dict[tuple[date, date], list[models.Transaction]] = {}
         for txn in txns:
             if not _reward_rule_matches_transaction(rule, txn):
@@ -310,7 +319,7 @@ def recalculate_reward_rules(db: Session, card: models.Card, ref_date: date) -> 
                     else:
                         share = round(raw_total * (txn.amount / total_amount), 2)
                         distributed += share
-                    cashback_by_txn_id[txn.id] += share
+                    rule_cashback_by_txn_id[txn.id] += share
             else:
                 spent_so_far = 0.0
                 cashback_used = 0.0
@@ -320,9 +329,22 @@ def recalculate_reward_rules(db: Session, card: models.Card, ref_date: date) -> 
                     if rule.monthly_cap is not None and cashback_used + raw > rule.monthly_cap:
                         raw = max(0, rule.monthly_cap - cashback_used)
 
-                    cashback_by_txn_id[txn.id] += raw
+                    rule_cashback_by_txn_id[txn.id] += raw
                     spent_so_far += txn.amount
                     cashback_used += raw
+
+        if rule.stacking_mode == "exclusive":
+            group_key = rule.exclusive_group or f"rule:{rule.id}"
+            group_cashback = exclusive_by_group_and_txn_id.setdefault(group_key, {})
+            for txn_id, cashback in rule_cashback_by_txn_id.items():
+                group_cashback[txn_id] = max(group_cashback.get(txn_id, 0.0), cashback)
+        else:
+            for txn_id, cashback in rule_cashback_by_txn_id.items():
+                cashback_by_txn_id[txn_id] += cashback
+
+    for group_cashback in exclusive_by_group_and_txn_id.values():
+        for txn_id, cashback in group_cashback.items():
+            cashback_by_txn_id[txn_id] += cashback
 
     for txn in txns:
         txn.cashback = round(cashback_by_txn_id[txn.id], 2)

@@ -110,11 +110,21 @@ class RewardRuleBase(BaseModel):
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     payment_methods: Optional[list[PaymentMethod]] = None
+    stacking_mode: Literal["stackable", "exclusive"] = "stackable"
+    exclusive_group: Optional[str] = Field(default=None, max_length=120)
+    merchant_keywords: Optional[list[str]] = None
+    category_names: Optional[list[str]] = None
 
     @model_validator(mode="after")
     def validate_active_date_range(self):
         if self.start_date is not None and self.end_date is not None and self.end_date < self.start_date:
             raise ValueError("end_date must be on or after start_date")
+        if self.exclusive_group is not None:
+            self.exclusive_group = self.exclusive_group.strip() or None
+        if self.merchant_keywords is not None:
+            self.merchant_keywords = [keyword.strip() for keyword in self.merchant_keywords if keyword.strip()]
+        if self.category_names is not None:
+            self.category_names = [category.strip() for category in self.category_names if category.strip()]
         return self
 
 

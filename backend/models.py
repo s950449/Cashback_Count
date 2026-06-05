@@ -53,6 +53,10 @@ class RewardRule(Base):
     start_date = Column(Date)
     end_date = Column(Date)
     payment_methods = Column(JSON)
+    stacking_mode = Column(Text, default="stackable")  # "stackable" / "exclusive"
+    exclusive_group = Column(Text)
+    merchant_keywords = Column(JSON)
+    category_names = Column(JSON)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     card = relationship("Card", back_populates="reward_rules")

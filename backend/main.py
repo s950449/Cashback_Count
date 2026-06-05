@@ -29,6 +29,14 @@ def ensure_sqlite_schema():
     with engine.begin() as conn:
         if "payment_methods" not in existing_reward_rule_columns:
             conn.execute(text("ALTER TABLE reward_rules ADD COLUMN payment_methods JSON"))
+        if "stacking_mode" not in existing_reward_rule_columns:
+            conn.execute(text("ALTER TABLE reward_rules ADD COLUMN stacking_mode TEXT DEFAULT 'stackable'"))
+        if "exclusive_group" not in existing_reward_rule_columns:
+            conn.execute(text("ALTER TABLE reward_rules ADD COLUMN exclusive_group TEXT"))
+        if "merchant_keywords" not in existing_reward_rule_columns:
+            conn.execute(text("ALTER TABLE reward_rules ADD COLUMN merchant_keywords JSON"))
+        if "category_names" not in existing_reward_rule_columns:
+            conn.execute(text("ALTER TABLE reward_rules ADD COLUMN category_names JSON"))
 
 
 ensure_sqlite_schema()
