@@ -3,10 +3,11 @@ import type { Transaction, Card } from '../../types';
 interface Props {
   transactions: Transaction[];
   cards: Card[];
+  onEdit: (transaction: Transaction) => void;
   onDelete: (id: number) => void;
 }
 
-export default function TransactionList({ transactions, cards, onDelete }: Props) {
+export default function TransactionList({ transactions, cards, onEdit, onDelete }: Props) {
   const cardMap = Object.fromEntries(cards.map((c) => [c.id, c]));
 
   if (transactions.length === 0) {
@@ -42,6 +43,21 @@ export default function TransactionList({ transactions, cards, onDelete }: Props
               </td>
               <td style={tdStyle}>{t.note || '-'}</td>
               <td style={tdStyle}>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button
+                    onClick={() => onEdit(t)}
+                    style={{
+                      background: '#0f3460',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '4px',
+                      padding: '4px 10px',
+                      cursor: 'pointer',
+                      fontSize: '0.8rem',
+                    }}
+                  >
+                    編輯
+                  </button>
                 <button
                   onClick={() => onDelete(t.id)}
                   style={{
@@ -56,6 +72,7 @@ export default function TransactionList({ transactions, cards, onDelete }: Props
                 >
                   刪除
                 </button>
+                </div>
               </td>
             </tr>
           );
