@@ -52,8 +52,15 @@ def _parse_import_csv(csv_text: str) -> list[schemas.TransactionCreate]:
 def list_transactions(
     card_id: Optional[int] = Query(None),
     month: Optional[str] = Query(None, description="YYYY-MM format"),
+    merchant: Optional[str] = Query(None, min_length=1, max_length=120),
+    category: Optional[str] = Query(None, min_length=1, max_length=120),
+    min_amount: Optional[float] = Query(None, ge=0),
+    max_amount: Optional[float] = Query(None, ge=0),
     db: Session = Depends(get_db),
 ):
+    if min_amount is not None and max_amount is not None and min_amount > max_amount:
+        raise HTTPException(status_code=422, detail="min_amount must be less than or equal to max_amount")
+
     query = db.query(models.Transaction)
     if card_id is not None:
         query = query.filter(models.Transaction.card_id == card_id)
@@ -63,6 +70,14 @@ def list_transactions(
             models.Transaction.transaction_date >= start,
             models.Transaction.transaction_date < end,
         )
+    if merchant:
+        query = query.filter(models.Transaction.merchant.ilike(f"%{merchant.strip()}%"))
+    if category:
+        query = query.filter(models.Transaction.category == category.strip())
+    if min_amount is not None:
+        query = query.filter(models.Transaction.amount >= min_amount)
+    if max_amount is not None:
+        query = query.filter(models.Transaction.amount <= max_amount)
     return query.order_by(models.Transaction.transaction_date.desc(), models.Transaction.id.desc()).all()
 
 

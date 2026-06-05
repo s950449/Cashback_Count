@@ -52,13 +52,23 @@ def create_card(client, **overrides):
     return response.json()
 
 
-def create_transaction(client, card_id, amount, transaction_date="2026-06-05"):
+def create_transaction(
+    client,
+    card_id,
+    amount,
+    transaction_date="2026-06-05",
+    note="",
+    merchant=None,
+    category=None,
+):
     response = client.post(
         "/api/transactions",
         json={
             "card_id": card_id,
             "amount": amount,
-            "note": "",
+            "note": note,
+            "merchant": merchant,
+            "category": category,
             "transaction_date": transaction_date,
         },
     )
@@ -142,6 +152,57 @@ def test_card_validation_rejects_invalid_values(client, payload):
 @pytest.mark.parametrize("path", ["/api/transactions", "/api/dashboard/summary"])
 def test_month_filter_validation_rejects_invalid_month(client, path):
     response = client.get(path, params={"month": "2026-99"})
+
+    assert response.status_code == 422
+
+
+def test_transaction_filters_by_merchant_category_and_amount(client):
+    card = create_card(client)
+    cafe = create_transaction(
+        client,
+        card["id"],
+        180,
+        transaction_date="2026-06-01",
+        merchant="Local Cafe",
+        category="餐飲",
+    )
+    create_transaction(
+        client,
+        card["id"],
+        80,
+        transaction_date="2026-06-02",
+        merchant="Coffee Cart",
+        category="餐飲",
+    )
+    create_transaction(
+        client,
+        card["id"],
+        500,
+        transaction_date="2026-06-03",
+        merchant="Book Store",
+        category="娛樂",
+    )
+
+    response = client.get(
+        "/api/transactions",
+        params={
+            "month": "2026-06",
+            "merchant": "cafe",
+            "category": "餐飲",
+            "min_amount": 100,
+            "max_amount": 200,
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    assert [txn["id"] for txn in response.json()] == [cafe["id"]]
+
+
+def test_transaction_filter_rejects_invalid_amount_range(client):
+    response = client.get(
+        "/api/transactions",
+        params={"min_amount": 500, "max_amount": 100},
+    )
 
     assert response.status_code == 422
 

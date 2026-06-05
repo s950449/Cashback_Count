@@ -45,6 +45,10 @@ export async function deleteCard(id: number): Promise<void> {
 export async function fetchTransactions(params?: {
   card_id?: number;
   month?: string;
+  merchant?: string;
+  category?: string;
+  min_amount?: number;
+  max_amount?: number;
 }): Promise<Transaction[]> {
   const res = await api.get('/transactions', { params });
   return res.data;

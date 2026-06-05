@@ -33,6 +33,10 @@ export default function TransactionPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedCard, setSelectedCard] = useState<number | undefined>(undefined);
+  const [merchantFilter, setMerchantFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [minAmountFilter, setMinAmountFilter] = useState('');
+  const [maxAmountFilter, setMaxAmountFilter] = useState('');
   const [month, setMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -42,9 +46,18 @@ export default function TransactionPage() {
     setLoading(true);
     setError(null);
     try {
+      const minAmount = minAmountFilter ? parseFloat(minAmountFilter) : undefined;
+      const maxAmount = maxAmountFilter ? parseFloat(maxAmountFilter) : undefined;
       const [cardsData, txData] = await Promise.all([
         fetchCards(),
-        fetchTransactions({ card_id: selectedCard, month }),
+        fetchTransactions({
+          card_id: selectedCard,
+          month,
+          merchant: merchantFilter.trim() || undefined,
+          category: categoryFilter.trim() || undefined,
+          min_amount: Number.isFinite(minAmount) ? minAmount : undefined,
+          max_amount: Number.isFinite(maxAmount) ? maxAmount : undefined,
+        }),
       ]);
       setCards(cardsData);
       setTransactions(txData);
@@ -53,7 +66,7 @@ export default function TransactionPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedCard, month]);
+  }, [selectedCard, month, merchantFilter, categoryFilter, minAmountFilter, maxAmountFilter]);
 
   useEffect(() => {
     load();
@@ -116,6 +129,14 @@ export default function TransactionPage() {
     }
   };
 
+  const clearFilters = () => {
+    setSelectedCard(undefined);
+    setMerchantFilter('');
+    setCategoryFilter('');
+    setMinAmountFilter('');
+    setMaxAmountFilter('');
+  };
+
   return (
     <div>
       <h1>消費記錄</h1>
@@ -158,10 +179,9 @@ export default function TransactionPage() {
         </div>
       </section>
 
-      {/* Filters */}
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', alignItems: 'center' }}>
-        <div>
-          <label style={{ fontWeight: 600, marginRight: '0.5rem', fontSize: '0.9rem' }}>
+      <section style={filterPanel}>
+        <div style={filterGroup}>
+          <label style={filterLabel}>
             月份:
           </label>
           <input
@@ -171,8 +191,8 @@ export default function TransactionPage() {
             style={filterInput}
           />
         </div>
-        <div>
-          <label style={{ fontWeight: 600, marginRight: '0.5rem', fontSize: '0.9rem' }}>
+        <div style={filterGroup}>
+          <label style={filterLabel}>
             卡片:
           </label>
           <select
@@ -190,7 +210,53 @@ export default function TransactionPage() {
             ))}
           </select>
         </div>
-      </div>
+        <div style={filterGroup}>
+          <label style={filterLabel}>商店:</label>
+          <input
+            type="search"
+            value={merchantFilter}
+            onChange={(e) => setMerchantFilter(e.target.value)}
+            placeholder="搜尋商店"
+            style={filterInput}
+            maxLength={120}
+          />
+        </div>
+        <div style={filterGroup}>
+          <label style={filterLabel}>分類:</label>
+          <input
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            placeholder="例如：餐飲"
+            style={filterInput}
+            maxLength={120}
+          />
+        </div>
+        <div style={filterGroup}>
+          <label style={filterLabel}>金額:</label>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <input
+              type="number"
+              min={0}
+              value={minAmountFilter}
+              onChange={(e) => setMinAmountFilter(e.target.value)}
+              placeholder="最低"
+              style={amountInput}
+            />
+            <span style={{ color: '#777' }}>至</span>
+            <input
+              type="number"
+              min={0}
+              value={maxAmountFilter}
+              onChange={(e) => setMaxAmountFilter(e.target.value)}
+              placeholder="最高"
+              style={amountInput}
+            />
+          </div>
+        </div>
+        <button type="button" onClick={clearFilters} style={clearButton}>
+          清除篩選
+        </button>
+      </section>
 
       {loading ? (
         <p style={{ color: '#888' }}>載入中...</p>
@@ -211,6 +277,43 @@ const filterInput: React.CSSProperties = {
   padding: '6px 10px',
   border: '1px solid #ccc',
   borderRadius: '4px',
+};
+
+const filterPanel: React.CSSProperties = {
+  display: 'flex',
+  gap: '0.75rem',
+  marginBottom: '1rem',
+  alignItems: 'end',
+  flexWrap: 'wrap',
+  background: '#fff',
+  border: '1px solid #e5e7eb',
+  borderRadius: '6px',
+  padding: '1rem',
+};
+
+const filterGroup: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '0.35rem',
+};
+
+const filterLabel: React.CSSProperties = {
+  fontWeight: 600,
+  fontSize: '0.85rem',
+};
+
+const amountInput: React.CSSProperties = {
+  ...filterInput,
+  width: '96px',
+};
+
+const clearButton: React.CSSProperties = {
+  background: '#e0e0e0',
+  color: '#333',
+  border: 'none',
+  borderRadius: '4px',
+  padding: '7px 12px',
+  cursor: 'pointer',
 };
 
 const errorStyle: React.CSSProperties = {

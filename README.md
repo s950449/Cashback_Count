@@ -142,7 +142,7 @@ DELETE /api/cards/{id}         # 刪除卡片
 
 ### 消費記錄
 ```
-GET    /api/transactions                # 列出記錄 (?card_id=&month= 篩選)
+GET    /api/transactions                # 列出記錄 (?card_id=&month=&merchant=&category=&min_amount=&max_amount= 篩選)
 POST   /api/transactions               # 新增消費記錄 (自動計算 cashback)
 POST   /api/transactions/import-csv    # 匯入 CSV (card_id, amount, transaction_date, note)
 PUT    /api/transactions/{id}          # 更新記錄
