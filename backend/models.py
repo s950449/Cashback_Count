@@ -22,6 +22,7 @@ class Card(Base):
     tiers = relationship("CashbackTier", back_populates="card", cascade="all, delete-orphan")
     transactions = relationship("Transaction", back_populates="card", cascade="all, delete-orphan")
     reward_rules = relationship("RewardRule", back_populates="card", cascade="all, delete-orphan")
+    reward_rule_drafts = relationship("RewardRuleDraft", back_populates="card", cascade="all, delete-orphan")
 
 
 class CashbackTier(Base):
@@ -73,6 +74,19 @@ class RewardRuleTier(Base):
     rate = Column(Float, nullable=False)
 
     reward_rule = relationship("RewardRule", back_populates="tiers")
+
+
+class RewardRuleDraft(Base):
+    __tablename__ = "reward_rule_drafts"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    card_id = Column(Integer, ForeignKey("cards.id", ondelete="CASCADE"), nullable=False)
+    source_text = Column(Text, nullable=False)
+    parsed_payload = Column(JSON, nullable=False)
+    status = Column(Text, default="draft")
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    card = relationship("Card", back_populates="reward_rule_drafts")
 
 
 class Transaction(Base):

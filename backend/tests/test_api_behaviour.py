@@ -920,3 +920,79 @@ def test_import_transactions_csv_is_all_or_nothing_when_card_missing(client):
     assert response.status_code == 422
     assert "row 3" in response.json()["detail"]
     assert client.get("/api/transactions", params={"month": "2026-06"}).json() == []
+
+
+def test_import_reward_rule_draft_parses_payment_bonus_terms(client):
+    card = create_card(client)
+
+    response = client.post(
+        "/api/rule-import/reward-rule-drafts",
+        json={
+            "card_id": card["id"],
+            "source_text": (
+                "Apple Pay 台鐵加碼4%，每月上限100元，日曆月計算。"
+                "本活動與其他行動支付加碼擇優適用，不得併用。"
+            ),
+        },
+    )
+
+    assert response.status_code == 201, response.text
+    draft = response.json()
+    assert draft["card_id"] == card["id"]
+    assert draft["status"] == "draft"
+    assert draft["source_text"] == (
+        "Apple Pay 台鐵加碼4%，每月上限100元，日曆月計算。"
+        "本活動與其他行動支付加碼擇優適用，不得併用。"
+    )
+    assert draft["parsed_payload"]["payment_methods"] == ["Apple Pay"]
+    assert draft["parsed_payload"]["fixed_rate"] == 0.04
+    assert draft["parsed_payload"]["monthly_cap"] == 100
+    assert draft["parsed_payload"]["cycle_type"] == "calendar_month"
+    assert draft["parsed_payload"]["reward_kind"] == "campaign_bonus"
+    assert draft["parsed_payload"]["stacking_mode"] == "exclusive"
+    assert draft["parsed_payload"]["exclusive_group"] == "imported_bonus"
+    assert draft["parsed_payload"]["merchant_keywords"] == ["台鐵"]
+    assert draft["parsed_payload"]["warnings"] == []
+
+
+def test_import_reward_rule_draft_strips_html_and_scripts(client):
+    card = create_card(client)
+
+    response = client.post(
+        "/api/rule-import/reward-rule-drafts",
+        json={
+            "card_id": card["id"],
+            "source_text": "<h1>Google Pay 加碼2%</h1><script>alert('x')</script><p>帳單月上限50元</p>",
+        },
+    )
+
+    assert response.status_code == 201, response.text
+    draft = response.json()
+    assert "<" not in draft["source_text"]
+    assert "script" not in draft["source_text"].lower()
+    assert "alert" not in draft["source_text"].lower()
+    assert draft["parsed_payload"]["payment_methods"] == ["Google Pay"]
+    assert draft["parsed_payload"]["fixed_rate"] == 0.02
+    assert draft["parsed_payload"]["monthly_cap"] == 50
+    assert draft["parsed_payload"]["cycle_type"] == "billing_cycle"
+
+
+def test_import_reward_rule_drafts_can_be_listed_and_deleted(client):
+    card = create_card(client)
+    other_card = create_card(client, card_name="Other")
+    created = client.post(
+        "/api/rule-import/reward-rule-drafts",
+        json={"card_id": card["id"], "source_text": "Line Pay 加碼3%，每月上限30元"},
+    ).json()
+    client.post(
+        "/api/rule-import/reward-rule-drafts",
+        json={"card_id": other_card["id"], "source_text": "街口支付加碼1%"},
+    )
+
+    listed = client.get("/api/rule-import/reward-rule-drafts", params={"card_id": card["id"]})
+    assert listed.status_code == 200, listed.text
+    assert [draft["id"] for draft in listed.json()] == [created["id"]]
+
+    deleted = client.delete(f"/api/rule-import/reward-rule-drafts/{created['id']}")
+    assert deleted.status_code == 204
+    assert client.get("/api/rule-import/reward-rule-drafts", params={"card_id": card["id"]}).json() == []

@@ -111,6 +111,35 @@ export interface RewardRuleFormData {
   tiers: Omit<RewardRuleTier, 'id' | 'reward_rule_id'>[];
 }
 
+export interface RewardRuleDraftPayload {
+  rule_name: string;
+  reward_kind: RewardRule['reward_kind'];
+  cycle_type: RewardRule['cycle_type'];
+  cashback_type: RewardRule['cashback_type'];
+  fixed_rate: number | null;
+  monthly_cap: number | null;
+  calc_method: RewardRule['calc_method'];
+  rounding_rule: RewardRule['rounding_rule'];
+  is_active: boolean;
+  start_date: string | null;
+  end_date: string | null;
+  payment_methods: PaymentMethod[] | null;
+  stacking_mode: RewardRule['stacking_mode'];
+  exclusive_group: string | null;
+  merchant_keywords: string[] | null;
+  category_names: string[] | null;
+  warnings: string[];
+}
+
+export interface RewardRuleDraft {
+  id: number;
+  card_id: number;
+  source_text: string;
+  parsed_payload: RewardRuleDraftPayload;
+  status: 'draft';
+  created_at: string | null;
+}
+
 export interface Transaction {
   id: number;
   card_id: number;

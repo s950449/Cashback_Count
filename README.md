@@ -8,6 +8,7 @@
 - 自動計算回饋：固定回饋率 / 分級累進回饋（類似累進稅率）
 - 四種計算模式：逐筆 or 合併 × 四捨五入 or 無條件捨去
 - 月度上限追蹤：即時顯示回饋上限使用進度
+- 規則草稿匯入：貼上銀行活動文字或網頁內容，解析成待審核回饋規則草稿
 - 儀表板：月度消費與回饋摘要、分類統計、分類預算追蹤、各卡明細
 - Google Sheets 匯出
 
@@ -32,11 +33,13 @@ Cashback_Count/
 │   ├── schemas.py           # Pydantic schemas
 │   ├── routers/
 │   │   ├── cards.py         # 卡片 CRUD
+│   │   ├── rule_import.py   # 回饋規則草稿匯入
 │   │   ├── transactions.py  # 消費記錄 CRUD + 自動回饋計算
 │   │   ├── dashboard.py     # 月度摘要
 │   │   └── export.py        # Google Sheets 匯出
 │   ├── services/
 │   │   ├── cashback.py      # 回饋計算引擎
+│   │   ├── rule_import.py   # 貼上文字解析
 │   │   └── sheets.py        # Google Sheets 匯出邏輯
 │   └── requirements.txt
 ├── frontend/
@@ -50,7 +53,7 @@ Cashback_Count/
 │   │   └── components/
 │   │       ├── layout/              # Navbar, Layout
 │   │       ├── transaction/         # TransactionForm, TransactionList
-│   │       ├── card/                # CardList, CardFormModal, RewardRuleList, RewardRuleFormModal, TierEditor
+│   │       ├── card/                # CardList, CardFormModal, RewardRuleList, RewardRuleFormModal, RewardRuleImportPanel, TierEditor
 │   │       └── dashboard/           # MonthlySummary, CashbackProgress
 │   ├── index.html
 │   ├── package.json
@@ -141,6 +144,15 @@ Swagger API 文件：`http://localhost:8000/docs`
 | max_amount | REAL | 區間結束金額 (NULL = 無上限) |
 | rate | REAL | 該規則在此區間的回饋率 |
 
+### reward_rule_drafts 表
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INTEGER PK | 自動遞增 |
+| card_id | INTEGER FK | 關聯 cards.id |
+| source_text | TEXT | 去除 HTML/script/style 後的貼上文字 |
+| parsed_payload | JSON | 解析出的候選回饋規則欄位與警告 |
+| status | TEXT | 目前固定為 `draft` |
+
 ### transactions 表
 | Column | Type | Description |
 |--------|------|-------------|
@@ -179,6 +191,13 @@ POST   /api/reward-rules             # 新增回饋規則 (含 tiers)
 GET    /api/reward-rules/{id}        # 取得單一回饋規則
 PUT    /api/reward-rules/{id}        # 更新回饋規則 (含 tiers 整批替換)
 DELETE /api/reward-rules/{id}        # 刪除回饋規則
+```
+
+### 回饋規則草稿匯入
+```
+GET    /api/rule-import/reward-rule-drafts             # 列出草稿 (?card_id= 篩選)
+POST   /api/rule-import/reward-rule-drafts             # 貼上文字/HTML 並解析成草稿
+DELETE /api/rule-import/reward-rule-drafts/{draft_id}  # 刪除草稿
 ```
 
 ### 消費記錄
@@ -222,6 +241,8 @@ POST   /api/export/google-sheets       # 匯出至 Google Sheets
 `reward_rules.payment_methods` 可限制支付工具加碼，例如 Apple Pay、Google Pay、臺灣行動支付、臺灣Pay、Line Pay、街口支付、iCash Pay、iPass Money、全支付、悠遊付；未設定時代表不限支付工具。
 
 `stacking_mode` 控制是否可疊加：`stackable` 規則會全部加總；`exclusive` 規則會依 `exclusive_group` 分組，同一群組內同一筆交易只取最高回饋。`merchant_keywords` 與 `category_names` 可限制特殊店家或分類加碼，例如台鐵加碼與 Apple Pay 加碼同群組擇優。
+
+卡片設定頁可貼上銀行活動文字或網頁內容來建立 `reward_rule_drafts`。系統會移除 HTML、script、style 後以純文字解析支付工具、回饋率、上限、帳單月/日曆月、擇優/疊加、店家與分類關鍵字；解析結果只會成為草稿，不會自動套用到正式 `reward_rules`，仍需人工確認。
 
 每張卡由兩個維度組合出 4 種計算模式：
 

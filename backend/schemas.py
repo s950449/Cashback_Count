@@ -144,6 +144,44 @@ class RewardRuleOut(RewardRuleBase):
     model_config = {"from_attributes": True}
 
 
+# --- RewardRuleDraft ---
+
+class RewardRuleDraftPayload(BaseModel):
+    rule_name: str = Field(min_length=1, max_length=120)
+    reward_kind: Literal["base", "mission_bonus", "campaign_bonus", "other_bonus"] = "campaign_bonus"
+    cycle_type: Literal["billing_cycle", "calendar_month"] = "calendar_month"
+    cashback_type: Literal["fixed", "tiered"] = "fixed"
+    fixed_rate: Optional[float] = Field(default=None, ge=0)
+    monthly_cap: Optional[float] = Field(default=None, ge=0)
+    calc_method: Literal["per_transaction", "aggregate"] = "per_transaction"
+    rounding_rule: Literal["floor", "round"] = "floor"
+    is_active: bool = True
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    payment_methods: Optional[list[PaymentMethod]] = None
+    stacking_mode: Literal["stackable", "exclusive"] = "stackable"
+    exclusive_group: Optional[str] = Field(default=None, max_length=120)
+    merchant_keywords: Optional[list[str]] = None
+    category_names: Optional[list[str]] = None
+    warnings: list[str] = []
+
+
+class RewardRuleDraftImportRequest(BaseModel):
+    card_id: int
+    source_text: str = Field(min_length=1, max_length=50_000)
+
+
+class RewardRuleDraftOut(BaseModel):
+    id: int
+    card_id: int
+    source_text: str
+    parsed_payload: RewardRuleDraftPayload
+    status: Literal["draft"] = "draft"
+    created_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+
 # --- Transaction ---
 
 class TransactionBase(BaseModel):

@@ -9,6 +9,7 @@ import type {
   CategoryBudget,
   CategoryBudgetFormData,
   RewardRule,
+  RewardRuleDraft,
   RewardRuleFormData,
 } from '../types';
 
@@ -69,6 +70,25 @@ export async function updateRewardRule(
 
 export async function deleteRewardRule(id: number): Promise<void> {
   await api.delete(`/reward-rules/${id}`);
+}
+
+// --- Reward Rule Draft Imports ---
+
+export async function fetchRewardRuleDrafts(params?: { card_id?: number }): Promise<RewardRuleDraft[]> {
+  const res = await api.get('/rule-import/reward-rule-drafts', { params });
+  return res.data;
+}
+
+export async function importRewardRuleDraft(cardId: number, sourceText: string): Promise<RewardRuleDraft> {
+  const res = await api.post('/rule-import/reward-rule-drafts', {
+    card_id: cardId,
+    source_text: sourceText,
+  });
+  return res.data;
+}
+
+export async function deleteRewardRuleDraft(id: number): Promise<void> {
+  await api.delete(`/rule-import/reward-rule-drafts/${id}`);
 }
 
 // --- Transactions ---

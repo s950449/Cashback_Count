@@ -1,12 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Card, CardFormData, RewardRule, RewardRuleFormData } from '../types';
+import type { Card, CardFormData, RewardRule, RewardRuleDraft, RewardRuleFormData } from '../types';
 import {
   createCard,
   createRewardRule,
   deleteCard,
   deleteRewardRule,
+  deleteRewardRuleDraft,
   fetchCards,
+  fetchRewardRuleDrafts,
   fetchRewardRules,
+  importRewardRuleDraft,
   updateCard,
   updateRewardRule,
 } from '../api/client';
@@ -14,6 +17,7 @@ import CardList from '../components/card/CardList';
 import CardFormModal from '../components/card/CardFormModal';
 import RewardRuleFormModal from '../components/card/RewardRuleFormModal';
 import RewardRuleList from '../components/card/RewardRuleList';
+import RewardRuleImportPanel from '../components/card/RewardRuleImportPanel';
 
 function getErrorMessage(error: unknown, fallback: string) {
   if (typeof error === 'object' && error !== null && 'response' in error) {
@@ -27,6 +31,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 export default function CardSettingsPage() {
   const [cards, setCards] = useState<Card[]>([]);
   const [rewardRules, setRewardRules] = useState<RewardRule[]>([]);
+  const [rewardRuleDrafts, setRewardRuleDrafts] = useState<RewardRuleDraft[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editingCard, setEditingCard] = useState<Card | null>(null);
   const [ruleCard, setRuleCard] = useState<Card | null>(null);
@@ -36,15 +41,22 @@ export default function CardSettingsPage() {
   const [savingRule, setSavingRule] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [deletingRuleId, setDeletingRuleId] = useState<number | null>(null);
+  const [importingDraftCardId, setImportingDraftCardId] = useState<number | null>(null);
+  const [deletingDraftId, setDeletingDraftId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [cardsData, rulesData] = await Promise.all([fetchCards(), fetchRewardRules()]);
+      const [cardsData, rulesData, draftsData] = await Promise.all([
+        fetchCards(),
+        fetchRewardRules(),
+        fetchRewardRuleDrafts(),
+      ]);
       setCards(cardsData);
       setRewardRules(rulesData);
+      setRewardRuleDrafts(draftsData);
     } catch (err) {
       setError(getErrorMessage(err, '載入卡片失敗'));
     } finally {
@@ -99,6 +111,11 @@ export default function CardSettingsPage() {
     return acc;
   }, {});
 
+  const draftsByCardId = rewardRuleDrafts.reduce<Record<number, RewardRuleDraft[]>>((acc, draft) => {
+    acc[draft.card_id] = [...(acc[draft.card_id] ?? []), draft];
+    return acc;
+  }, {});
+
   const handleAddRule = (card: Card) => {
     setRuleCard(card);
     setEditingRule(null);
@@ -142,6 +159,32 @@ export default function CardSettingsPage() {
     }
   };
 
+  const handleImportDraft = async (cardId: number, sourceText: string) => {
+    setImportingDraftCardId(cardId);
+    setError(null);
+    try {
+      await importRewardRuleDraft(cardId, sourceText);
+      await load();
+    } catch (err) {
+      setError(getErrorMessage(err, '解析回饋規則草稿失敗'));
+    } finally {
+      setImportingDraftCardId(null);
+    }
+  };
+
+  const handleDeleteDraft = async (id: number) => {
+    setDeletingDraftId(id);
+    setError(null);
+    try {
+      await deleteRewardRuleDraft(id);
+      await load();
+    } catch (err) {
+      setError(getErrorMessage(err, '刪除回饋規則草稿失敗'));
+    } finally {
+      setDeletingDraftId(null);
+    }
+  };
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
@@ -173,12 +216,22 @@ export default function CardSettingsPage() {
           onEdit={handleEdit}
           onDelete={handleDelete}
           renderDetails={(card) => (
-            <RewardRuleList
-              rules={rulesByCardId[card.id] ?? []}
-              onAdd={() => handleAddRule(card)}
-              onEdit={(rule) => handleEditRule(card, rule)}
-              onDelete={handleDeleteRule}
-            />
+            <>
+              <RewardRuleList
+                rules={rulesByCardId[card.id] ?? []}
+                onAdd={() => handleAddRule(card)}
+                onEdit={(rule) => handleEditRule(card, rule)}
+                onDelete={handleDeleteRule}
+              />
+              <RewardRuleImportPanel
+                card={card}
+                drafts={draftsByCardId[card.id] ?? []}
+                isImporting={importingDraftCardId === card.id}
+                deletingDraftId={deletingDraftId}
+                onImport={handleImportDraft}
+                onDelete={handleDeleteDraft}
+              />
+            </>
           )}
         />
       )}
@@ -187,6 +240,9 @@ export default function CardSettingsPage() {
       {deletingId && <p style={{ color: '#888', fontSize: '0.9rem' }}>正在刪除卡片 #{deletingId}...</p>}
       {deletingRuleId && (
         <p style={{ color: '#888', fontSize: '0.9rem' }}>正在刪除回饋規則 #{deletingRuleId}...</p>
+      )}
+      {deletingDraftId && (
+        <p style={{ color: '#888', fontSize: '0.9rem' }}>正在刪除回饋規則草稿 #{deletingDraftId}...</p>
       )}
       {showModal && (
         <CardFormModal
