@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Text, Float, DateTime, Date, ForeignKey
+from sqlalchemy import Boolean, Column, Integer, Text, Float, DateTime, Date, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 
@@ -21,6 +21,7 @@ class Card(Base):
 
     tiers = relationship("CashbackTier", back_populates="card", cascade="all, delete-orphan")
     transactions = relationship("Transaction", back_populates="card", cascade="all, delete-orphan")
+    reward_rules = relationship("RewardRule", back_populates="card", cascade="all, delete-orphan")
 
 
 class CashbackTier(Base):
@@ -33,6 +34,40 @@ class CashbackTier(Base):
     rate = Column(Float, nullable=False)
 
     card = relationship("Card", back_populates="tiers")
+
+
+class RewardRule(Base):
+    __tablename__ = "reward_rules"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    card_id = Column(Integer, ForeignKey("cards.id", ondelete="CASCADE"), nullable=False)
+    rule_name = Column(Text, nullable=False)
+    reward_kind = Column(Text, nullable=False)  # "base" / "mission_bonus" / "campaign_bonus" / "other_bonus"
+    cycle_type = Column(Text, nullable=False)  # "billing_cycle" / "calendar_month"
+    cashback_type = Column(Text, default="fixed")  # "fixed" / "tiered"
+    fixed_rate = Column(Float)
+    monthly_cap = Column(Float)
+    calc_method = Column(Text, default="per_transaction")  # "per_transaction" / "aggregate"
+    rounding_rule = Column(Text, default="floor")  # "floor" / "round"
+    is_active = Column(Boolean, default=True)
+    start_date = Column(Date)
+    end_date = Column(Date)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    card = relationship("Card", back_populates="reward_rules")
+    tiers = relationship("RewardRuleTier", back_populates="reward_rule", cascade="all, delete-orphan")
+
+
+class RewardRuleTier(Base):
+    __tablename__ = "reward_rule_tiers"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    reward_rule_id = Column(Integer, ForeignKey("reward_rules.id", ondelete="CASCADE"), nullable=False)
+    min_amount = Column(Float, nullable=False)
+    max_amount = Column(Float)
+    rate = Column(Float, nullable=False)
+
+    reward_rule = relationship("RewardRule", back_populates="tiers")
 
 
 class Transaction(Base):

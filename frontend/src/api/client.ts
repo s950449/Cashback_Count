@@ -8,6 +8,8 @@ import type {
   DashboardSummary,
   CategoryBudget,
   CategoryBudgetFormData,
+  RewardRule,
+  RewardRuleFormData,
 } from '../types';
 
 const api = axios.create({
@@ -38,6 +40,35 @@ export async function updateCard(id: number, data: CardFormData): Promise<Card> 
 
 export async function deleteCard(id: number): Promise<void> {
   await api.delete(`/cards/${id}`);
+}
+
+// --- Reward Rules ---
+
+export async function fetchRewardRules(params?: { card_id?: number }): Promise<RewardRule[]> {
+  const res = await api.get('/reward-rules', { params });
+  return res.data;
+}
+
+export async function fetchRewardRule(id: number): Promise<RewardRule> {
+  const res = await api.get(`/reward-rules/${id}`);
+  return res.data;
+}
+
+export async function createRewardRule(data: RewardRuleFormData): Promise<RewardRule> {
+  const res = await api.post('/reward-rules', data);
+  return res.data;
+}
+
+export async function updateRewardRule(
+  id: number,
+  data: RewardRuleFormData
+): Promise<RewardRule> {
+  const res = await api.put(`/reward-rules/${id}`, data);
+  return res.data;
+}
+
+export async function deleteRewardRule(id: number): Promise<void> {
+  await api.delete(`/reward-rules/${id}`);
 }
 
 // --- Transactions ---

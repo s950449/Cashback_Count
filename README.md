@@ -28,7 +28,7 @@ Cashback_Count/
 ├── backend/
 │   ├── main.py              # FastAPI app + CORS
 │   ├── database.py          # SQLAlchemy engine + session
-│   ├── models.py            # ORM models (Card, CashbackTier, Transaction)
+│   ├── models.py            # ORM models (Card, CashbackTier, RewardRule, Transaction)
 │   ├── schemas.py           # Pydantic schemas
 │   ├── routers/
 │   │   ├── cards.py         # 卡片 CRUD
@@ -110,6 +110,32 @@ Swagger API 文件：`http://localhost:8000/docs`
 | max_amount | REAL | 區間結束金額 (NULL = 無上限) |
 | rate | REAL | 該區間回饋率 |
 
+### reward_rules 表
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INTEGER PK | 自動遞增 |
+| card_id | INTEGER FK | 關聯 cards.id |
+| rule_name | TEXT | 規則名稱 |
+| reward_kind | TEXT | `base` / `mission_bonus` / `campaign_bonus` / `other_bonus` |
+| cycle_type | TEXT | `billing_cycle` / `calendar_month` |
+| cashback_type | TEXT | `fixed` / `tiered` |
+| fixed_rate | REAL | 固定回饋率 |
+| monthly_cap | REAL | 此規則自己的週期上限 |
+| calc_method | TEXT | `per_transaction` / `aggregate` |
+| rounding_rule | TEXT | `floor` / `round` |
+| is_active | BOOLEAN | 是否啟用 |
+| start_date | DATE | 活動起始日 (NULL = 不限制) |
+| end_date | DATE | 活動結束日 (NULL = 不限制) |
+
+### reward_rule_tiers 表
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INTEGER PK | 自動遞增 |
+| reward_rule_id | INTEGER FK | 關聯 reward_rules.id |
+| min_amount | REAL | 區間起始金額 (含) |
+| max_amount | REAL | 區間結束金額 (NULL = 無上限) |
+| rate | REAL | 該規則在此區間的回饋率 |
+
 ### transactions 表
 | Column | Type | Description |
 |--------|------|-------------|
@@ -140,6 +166,15 @@ PUT    /api/cards/{id}         # 更新卡片 (含 tiers 整批替換)
 DELETE /api/cards/{id}         # 刪除卡片
 ```
 
+### 回饋規則
+```
+GET    /api/reward-rules             # 列出回饋規則 (?card_id= 篩選)
+POST   /api/reward-rules             # 新增回饋規則 (含 tiers)
+GET    /api/reward-rules/{id}        # 取得單一回饋規則
+PUT    /api/reward-rules/{id}        # 更新回饋規則 (含 tiers 整批替換)
+DELETE /api/reward-rules/{id}        # 刪除回饋規則
+```
+
 ### 消費記錄
 ```
 GET    /api/transactions                # 列出記錄 (?card_id=&month=&merchant=&category=&min_amount=&max_amount= 篩選)
@@ -168,6 +203,8 @@ POST   /api/export/google-sheets       # 匯出至 Google Sheets
 ```
 
 ## 回饋計算邏輯
+
+> 目前交易計算仍使用卡片層級的舊版單一回饋規則；`reward_rules` 已先建立資料模型與 API，後續會把基本回饋、任務加碼、活動回饋拆成各自獨立計算並加總。
 
 每張卡由兩個維度組合出 4 種計算模式：
 

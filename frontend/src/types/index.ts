@@ -32,6 +32,48 @@ export interface CardFormData {
   tiers: Omit<CashbackTier, 'id' | 'card_id'>[];
 }
 
+export interface RewardRuleTier {
+  id?: number;
+  reward_rule_id?: number;
+  min_amount: number;
+  max_amount: number | null;
+  rate: number;
+}
+
+export interface RewardRule {
+  id: number;
+  card_id: number;
+  rule_name: string;
+  reward_kind: 'base' | 'mission_bonus' | 'campaign_bonus' | 'other_bonus';
+  cycle_type: 'billing_cycle' | 'calendar_month';
+  cashback_type: 'fixed' | 'tiered';
+  fixed_rate: number | null;
+  monthly_cap: number | null;
+  calc_method: 'per_transaction' | 'aggregate';
+  rounding_rule: 'floor' | 'round';
+  is_active: boolean;
+  start_date: string | null;
+  end_date: string | null;
+  tiers: RewardRuleTier[];
+  created_at: string | null;
+}
+
+export interface RewardRuleFormData {
+  card_id: number;
+  rule_name: string;
+  reward_kind: 'base' | 'mission_bonus' | 'campaign_bonus' | 'other_bonus';
+  cycle_type: 'billing_cycle' | 'calendar_month';
+  cashback_type: 'fixed' | 'tiered';
+  fixed_rate: number | null;
+  monthly_cap: number | null;
+  calc_method: 'per_transaction' | 'aggregate';
+  rounding_rule: 'floor' | 'round';
+  is_active: boolean;
+  start_date: string | null;
+  end_date: string | null;
+  tiers: Omit<RewardRuleTier, 'id' | 'reward_rule_id'>[];
+}
+
 export interface Transaction {
   id: number;
   card_id: number;

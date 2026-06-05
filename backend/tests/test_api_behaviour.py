@@ -297,6 +297,134 @@ def test_category_budget_rejects_duplicate_category(client):
     assert duplicate.status_code == 409
 
 
+def test_reward_rule_crud_and_card_filter(client):
+    card = create_card(client)
+    other_card = create_card(client, card_name="Backup")
+
+    created = client.post(
+        "/api/reward-rules",
+        json={
+            "card_id": card["id"],
+            "rule_name": "基本回饋",
+            "reward_kind": "base",
+            "cycle_type": "billing_cycle",
+            "cashback_type": "tiered",
+            "fixed_rate": None,
+            "monthly_cap": 300,
+            "calc_method": "aggregate",
+            "rounding_rule": "floor",
+            "is_active": True,
+            "start_date": "2026-01-01",
+            "end_date": "2026-12-31",
+            "tiers": [
+                {"min_amount": 0, "max_amount": 5000, "rate": 0.01},
+                {"min_amount": 5000, "max_amount": None, "rate": 0.02},
+            ],
+        },
+    )
+
+    assert created.status_code == 201, created.text
+    assert created.json()["rule_name"] == "基本回饋"
+    assert created.json()["reward_kind"] == "base"
+    assert len(created.json()["tiers"]) == 2
+
+    hidden = client.post(
+        "/api/reward-rules",
+        json={
+            "card_id": other_card["id"],
+            "rule_name": "其他卡任務",
+            "reward_kind": "mission_bonus",
+            "cycle_type": "calendar_month",
+            "cashback_type": "fixed",
+            "fixed_rate": 0.01,
+            "monthly_cap": None,
+            "calc_method": "per_transaction",
+            "rounding_rule": "round",
+            "is_active": True,
+            "tiers": [],
+        },
+    )
+    assert hidden.status_code == 201, hidden.text
+
+    listed = client.get("/api/reward-rules", params={"card_id": card["id"]})
+    assert listed.status_code == 200, listed.text
+    assert [rule["id"] for rule in listed.json()] == [created.json()["id"]]
+
+    updated = client.put(
+        f"/api/reward-rules/{created.json()['id']}",
+        json={
+            "card_id": card["id"],
+            "rule_name": "活動加碼",
+            "reward_kind": "campaign_bonus",
+            "cycle_type": "calendar_month",
+            "cashback_type": "fixed",
+            "fixed_rate": 0.03,
+            "monthly_cap": 100,
+            "calc_method": "per_transaction",
+            "rounding_rule": "round",
+            "is_active": False,
+            "start_date": None,
+            "end_date": None,
+            "tiers": [],
+        },
+    )
+
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["rule_name"] == "活動加碼"
+    assert updated.json()["is_active"] is False
+    assert updated.json()["tiers"] == []
+
+    deleted = client.delete(f"/api/reward-rules/{created.json()['id']}")
+    assert deleted.status_code == 204
+    assert client.get(f"/api/reward-rules/{created.json()['id']}").status_code == 404
+
+
+def test_reward_rule_rejects_missing_card(client):
+    response = client.post(
+        "/api/reward-rules",
+        json={
+            "card_id": 9999,
+            "rule_name": "不存在卡片",
+            "reward_kind": "base",
+            "cycle_type": "billing_cycle",
+            "cashback_type": "fixed",
+            "fixed_rate": 0.01,
+            "monthly_cap": None,
+            "calc_method": "per_transaction",
+            "rounding_rule": "floor",
+            "is_active": True,
+            "tiers": [],
+        },
+    )
+
+    assert response.status_code == 404
+
+
+def test_reward_rule_rejects_invalid_active_date_range(client):
+    card = create_card(client)
+
+    response = client.post(
+        "/api/reward-rules",
+        json={
+            "card_id": card["id"],
+            "rule_name": "錯誤日期",
+            "reward_kind": "campaign_bonus",
+            "cycle_type": "calendar_month",
+            "cashback_type": "fixed",
+            "fixed_rate": 0.01,
+            "monthly_cap": None,
+            "calc_method": "per_transaction",
+            "rounding_rule": "floor",
+            "is_active": True,
+            "start_date": "2026-12-31",
+            "end_date": "2026-01-01",
+            "tiers": [],
+        },
+    )
+
+    assert response.status_code == 422
+
+
 def test_dashboard_summary_includes_category_budget_usage(client):
     card = create_card(client, fixed_rate=0.02)
     create_transaction(client, card["id"], 1000, transaction_date="2026-06-01")
