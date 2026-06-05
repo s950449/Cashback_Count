@@ -85,6 +85,15 @@ class TransactionOut(TransactionBase):
     model_config = {"from_attributes": True}
 
 
+class TransactionImportCsvRequest(BaseModel):
+    csv_text: str = Field(min_length=1, max_length=200_000)
+
+
+class TransactionImportCsvResult(BaseModel):
+    imported_count: int
+    transactions: list[TransactionOut]
+
+
 # --- Dashboard ---
 
 class CardSummary(BaseModel):

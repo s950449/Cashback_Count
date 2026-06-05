@@ -1,4 +1,9 @@
+import csv
+from datetime import date
+from io import StringIO
+
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 from typing import Optional
 
@@ -8,6 +13,37 @@ from ..services.cashback import recalculate_cashback_cycle
 from ..services.dates import parse_month_range
 
 router = APIRouter()
+
+REQUIRED_IMPORT_COLUMNS = {"card_id", "amount", "transaction_date", "note"}
+
+
+def _parse_import_csv(csv_text: str) -> list[schemas.TransactionCreate]:
+    reader = csv.DictReader(StringIO(csv_text))
+    if reader.fieldnames is None:
+        raise HTTPException(status_code=422, detail="CSV must include a header row")
+
+    missing_columns = REQUIRED_IMPORT_COLUMNS - set(reader.fieldnames)
+    if missing_columns:
+        missing = ", ".join(sorted(missing_columns))
+        raise HTTPException(status_code=422, detail=f"CSV missing required columns: {missing}")
+
+    parsed_rows = []
+    for row_number, row in enumerate(reader, start=2):
+        try:
+            parsed_rows.append(
+                schemas.TransactionCreate(
+                    card_id=int((row.get("card_id") or "").strip()),
+                    amount=float((row.get("amount") or "").strip()),
+                    transaction_date=date.fromisoformat((row.get("transaction_date") or "").strip()),
+                    note=(row.get("note") or "").strip() or None,
+                )
+            )
+        except (ValueError, ValidationError) as exc:
+            raise HTTPException(status_code=422, detail=f"Invalid CSV row {row_number}: {exc}") from exc
+
+    if not parsed_rows:
+        raise HTTPException(status_code=422, detail="CSV must include at least one transaction row")
+    return parsed_rows
 
 
 @router.get("", response_model=list[schemas.TransactionOut])
@@ -48,6 +84,42 @@ def create_transaction(txn_in: schemas.TransactionCreate, db: Session = Depends(
     db.refresh(txn)
 
     return txn
+
+
+@router.post("/import-csv", response_model=schemas.TransactionImportCsvResult, status_code=201)
+def import_transactions_csv(req: schemas.TransactionImportCsvRequest, db: Session = Depends(get_db)):
+    rows = _parse_import_csv(req.csv_text)
+    card_ids = {row.card_id for row in rows}
+    cards = db.query(models.Card).filter(models.Card.id.in_(card_ids)).all()
+    card_by_id = {card.id: card for card in cards}
+
+    missing_card_ids = sorted(card_ids - set(card_by_id))
+    if missing_card_ids:
+        missing = ", ".join(str(card_id) for card_id in missing_card_ids)
+        first_missing_row = next(index for index, row in enumerate(rows, start=2) if row.card_id in missing_card_ids)
+        raise HTTPException(status_code=422, detail=f"Invalid CSV row {first_missing_row}: card_id not found ({missing})")
+
+    transactions = [
+        models.Transaction(
+            card_id=row.card_id,
+            amount=row.amount,
+            note=row.note,
+            transaction_date=row.transaction_date,
+        )
+        for row in rows
+    ]
+    db.add_all(transactions)
+    db.flush()
+
+    affected_cycles = {(row.card_id, row.transaction_date) for row in rows}
+    for card_id, transaction_date in affected_cycles:
+        recalculate_cashback_cycle(db, card_by_id[card_id], transaction_date)
+
+    db.commit()
+    for txn in transactions:
+        db.refresh(txn)
+
+    return schemas.TransactionImportCsvResult(imported_count=len(transactions), transactions=transactions)
 
 
 @router.put("/{txn_id}", response_model=schemas.TransactionOut)

@@ -4,6 +4,7 @@ import type {
   CardFormData,
   Transaction,
   TransactionFormData,
+  TransactionImportResult,
   DashboardSummary,
 } from '../types';
 
@@ -62,6 +63,11 @@ export async function updateTransaction(
 
 export async function deleteTransaction(id: number): Promise<void> {
   await api.delete(`/transactions/${id}`);
+}
+
+export async function importTransactionsCsv(csvText: string): Promise<TransactionImportResult> {
+  const res = await api.post('/transactions/import-csv', { csv_text: csvText });
+  return res.data;
 }
 
 // --- Dashboard ---

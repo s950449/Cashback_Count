@@ -233,3 +233,53 @@ def test_transaction_validation_rejects_oversized_note(client):
     )
 
     assert response.status_code == 422
+
+
+def test_import_transactions_csv_creates_rows_and_recalculates_cashback(client):
+    card = create_card(client, fixed_rate=0.02)
+
+    response = client.post(
+        "/api/transactions/import-csv",
+        json={
+            "csv_text": (
+                "card_id,amount,transaction_date,note\n"
+                f"{card['id']},1000,2026-06-01,早餐\n"
+                f"{card['id']},500,2026-06-02,午餐\n"
+            )
+        },
+    )
+
+    assert response.status_code == 201, response.text
+    assert response.json()["imported_count"] == 2
+    txns = client.get("/api/transactions", params={"month": "2026-06"}).json()
+    assert [txn["amount"] for txn in reversed(txns)] == [1000, 500]
+    assert sum(txn["cashback"] for txn in txns) == 30
+
+
+def test_import_transactions_csv_rejects_missing_required_columns(client):
+    response = client.post(
+        "/api/transactions/import-csv",
+        json={"csv_text": "card_id,amount,note\n1,100,missing date\n"},
+    )
+
+    assert response.status_code == 422
+    assert "transaction_date" in response.json()["detail"]
+
+
+def test_import_transactions_csv_is_all_or_nothing_when_card_missing(client):
+    card = create_card(client)
+
+    response = client.post(
+        "/api/transactions/import-csv",
+        json={
+            "csv_text": (
+                "card_id,amount,transaction_date,note\n"
+                f"{card['id']},100,2026-06-01,valid row\n"
+                "9999,200,2026-06-02,invalid card\n"
+            )
+        },
+    )
+
+    assert response.status_code == 422
+    assert "row 3" in response.json()["detail"]
+    assert client.get("/api/transactions", params={"month": "2026-06"}).json() == []

@@ -49,6 +49,11 @@ export interface TransactionFormData {
   transaction_date: string;
 }
 
+export interface TransactionImportResult {
+  imported_count: number;
+  transactions: Transaction[];
+}
+
 export interface CardSummary {
   card_id: number;
   card_name: string;
