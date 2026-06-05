@@ -6,6 +6,33 @@ export interface CashbackTier {
   rate: number;
 }
 
+export type PaymentMethod =
+  | 'Apple Pay'
+  | 'Google Pay'
+  | '臺灣行動支付'
+  | '臺灣Pay'
+  | 'Line Pay'
+  | '街口支付'
+  | 'iCash Pay'
+  | 'iPass Money'
+  | '全支付'
+  | '悠遊付'
+  | '其他';
+
+export const PAYMENT_METHODS: PaymentMethod[] = [
+  'Apple Pay',
+  'Google Pay',
+  '臺灣行動支付',
+  '臺灣Pay',
+  'Line Pay',
+  '街口支付',
+  'iCash Pay',
+  'iPass Money',
+  '全支付',
+  '悠遊付',
+  '其他',
+];
+
 export interface Card {
   id: number;
   card_name: string;
@@ -54,6 +81,7 @@ export interface RewardRule {
   is_active: boolean;
   start_date: string | null;
   end_date: string | null;
+  payment_methods: PaymentMethod[] | null;
   tiers: RewardRuleTier[];
   created_at: string | null;
 }
@@ -71,6 +99,7 @@ export interface RewardRuleFormData {
   is_active: boolean;
   start_date: string | null;
   end_date: string | null;
+  payment_methods: PaymentMethod[] | null;
   tiers: Omit<RewardRuleTier, 'id' | 'reward_rule_id'>[];
 }
 
@@ -82,6 +111,7 @@ export interface Transaction {
   note: string | null;
   merchant: string | null;
   category: string | null;
+  payment_method: PaymentMethod | null;
   transaction_date: string;
   created_at: string | null;
 }
@@ -92,6 +122,7 @@ export interface TransactionFormData {
   note: string;
   merchant: string;
   category: string;
+  payment_method: PaymentMethod | null | '';
   transaction_date: string;
 }
 

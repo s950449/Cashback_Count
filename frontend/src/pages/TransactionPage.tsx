@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { PAYMENT_METHODS } from '../types';
 import type { Card, Transaction, TransactionFormData } from '../types';
 import {
   fetchCards,
@@ -35,6 +36,7 @@ export default function TransactionPage() {
   const [selectedCard, setSelectedCard] = useState<number | undefined>(undefined);
   const [merchantFilter, setMerchantFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState('');
   const [minAmountFilter, setMinAmountFilter] = useState('');
   const [maxAmountFilter, setMaxAmountFilter] = useState('');
   const [month, setMonth] = useState(() => {
@@ -55,6 +57,7 @@ export default function TransactionPage() {
           month,
           merchant: merchantFilter.trim() || undefined,
           category: categoryFilter.trim() || undefined,
+          payment_method: paymentMethodFilter || undefined,
           min_amount: Number.isFinite(minAmount) ? minAmount : undefined,
           max_amount: Number.isFinite(maxAmount) ? maxAmount : undefined,
         }),
@@ -66,7 +69,15 @@ export default function TransactionPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedCard, month, merchantFilter, categoryFilter, minAmountFilter, maxAmountFilter]);
+  }, [
+    selectedCard,
+    month,
+    merchantFilter,
+    categoryFilter,
+    paymentMethodFilter,
+    minAmountFilter,
+    maxAmountFilter,
+  ]);
 
   useEffect(() => {
     load();
@@ -133,6 +144,7 @@ export default function TransactionPage() {
     setSelectedCard(undefined);
     setMerchantFilter('');
     setCategoryFilter('');
+    setPaymentMethodFilter('');
     setMinAmountFilter('');
     setMaxAmountFilter('');
   };
@@ -158,7 +170,7 @@ export default function TransactionPage() {
       <section style={importPanel}>
         <div>
           <h2 style={sectionTitle}>CSV 匯入</h2>
-          <p style={helperText}>必要欄位：card_id, amount, transaction_date, note；可選欄位：merchant, category</p>
+          <p style={helperText}>必要欄位：card_id, amount, transaction_date, note；可選欄位：merchant, category, payment_method</p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <input
@@ -230,6 +242,21 @@ export default function TransactionPage() {
             style={filterInput}
             maxLength={120}
           />
+        </div>
+        <div style={filterGroup}>
+          <label style={filterLabel}>支付工具:</label>
+          <select
+            value={paymentMethodFilter}
+            onChange={(e) => setPaymentMethodFilter(e.target.value)}
+            style={filterInput}
+          >
+            <option value="">全部</option>
+            {PAYMENT_METHODS.map((method) => (
+              <option key={method} value={method}>
+                {method}
+              </option>
+            ))}
+          </select>
         </div>
         <div style={filterGroup}>
           <label style={filterLabel}>金額:</label>

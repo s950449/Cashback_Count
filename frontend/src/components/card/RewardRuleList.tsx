@@ -49,6 +49,9 @@ export default function RewardRuleList({ rules, onAdd, onEdit, onDelete }: Props
                   {' | '}
                   {rule.rounding_rule === 'floor' ? '無條件捨去' : '四捨五入'}
                   {rule.monthly_cap != null && ` | 上限 $${rule.monthly_cap.toLocaleString()}`}
+                  {rule.payment_methods?.length
+                    ? ` | ${rule.payment_methods.join('、')}`
+                    : ' | 不限支付工具'}
                 </div>
                 {(rule.start_date || rule.end_date) && (
                   <div style={dateStyle}>

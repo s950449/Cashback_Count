@@ -126,6 +126,7 @@ Swagger API 文件：`http://localhost:8000/docs`
 | is_active | BOOLEAN | 是否啟用 |
 | start_date | DATE | 活動起始日 (NULL = 不限制) |
 | end_date | DATE | 活動結束日 (NULL = 不限制) |
+| payment_methods | JSON | 適用支付工具清單 (NULL = 不限制) |
 
 ### reward_rule_tiers 表
 | Column | Type | Description |
@@ -146,6 +147,7 @@ Swagger API 文件：`http://localhost:8000/docs`
 | note | TEXT | 備註 |
 | merchant | TEXT | 商店名稱 |
 | category | TEXT | 消費分類 |
+| payment_method | TEXT | 支付工具 |
 | transaction_date | DATE | 消費日期 |
 
 ### category_budgets 表
@@ -177,9 +179,9 @@ DELETE /api/reward-rules/{id}        # 刪除回饋規則
 
 ### 消費記錄
 ```
-GET    /api/transactions                # 列出記錄 (?card_id=&month=&merchant=&category=&min_amount=&max_amount= 篩選)
+GET    /api/transactions                # 列出記錄 (?card_id=&month=&merchant=&category=&payment_method=&min_amount=&max_amount= 篩選)
 POST   /api/transactions               # 新增消費記錄 (自動計算 cashback)
-POST   /api/transactions/import-csv    # 匯入 CSV (card_id, amount, transaction_date, note)
+POST   /api/transactions/import-csv    # 匯入 CSV (card_id, amount, transaction_date, note；可選 merchant, category, payment_method)
 PUT    /api/transactions/{id}          # 更新記錄
 DELETE /api/transactions/{id}          # 刪除記錄
 ```
@@ -212,6 +214,8 @@ POST   /api/export/google-sheets       # 匯出至 Google Sheets
 - `calendar_month`：依自然月統計
 
 `reward_kind` 可用來拆分基本回饋、任務加碼、活動回饋與其他加碼；這些規則不會先合併 rate 或上限，而是分別計算後加總。
+
+`reward_rules.payment_methods` 可限制支付工具加碼，例如 Apple Pay、Google Pay、臺灣行動支付、臺灣Pay、Line Pay、街口支付、iCash Pay、iPass Money、全支付、悠遊付；未設定時代表不限支付工具。
 
 每張卡由兩個維度組合出 4 種計算模式：
 

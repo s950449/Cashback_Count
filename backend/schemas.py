@@ -2,6 +2,20 @@ from pydantic import BaseModel, Field, model_validator
 from datetime import date, datetime
 from typing import Literal, Optional
 
+PaymentMethod = Literal[
+    "Apple Pay",
+    "Google Pay",
+    "臺灣行動支付",
+    "臺灣Pay",
+    "Line Pay",
+    "街口支付",
+    "iCash Pay",
+    "iPass Money",
+    "全支付",
+    "悠遊付",
+    "其他",
+]
+
 
 # --- CashbackTier ---
 
@@ -95,6 +109,7 @@ class RewardRuleBase(BaseModel):
     is_active: bool = True
     start_date: Optional[date] = None
     end_date: Optional[date] = None
+    payment_methods: Optional[list[PaymentMethod]] = None
 
     @model_validator(mode="after")
     def validate_active_date_range(self):
@@ -127,6 +142,7 @@ class TransactionBase(BaseModel):
     note: Optional[str] = Field(default=None, max_length=500)
     merchant: Optional[str] = Field(default=None, max_length=120)
     category: Optional[str] = Field(default=None, max_length=120)
+    payment_method: Optional[PaymentMethod] = None
     transaction_date: date
 
 
@@ -140,6 +156,7 @@ class TransactionUpdate(BaseModel):
     note: Optional[str] = Field(default=None, max_length=500)
     merchant: Optional[str] = Field(default=None, max_length=120)
     category: Optional[str] = Field(default=None, max_length=120)
+    payment_method: Optional[PaymentMethod] = None
     transaction_date: Optional[date] = None
 
 

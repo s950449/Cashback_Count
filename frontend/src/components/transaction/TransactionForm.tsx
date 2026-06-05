@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { PAYMENT_METHODS } from '../../types';
 import type { Card, Transaction, TransactionFormData } from '../../types';
 
 interface Props {
@@ -17,6 +18,7 @@ function getInitialForm(cards: Card[], transaction?: Transaction | null): Transa
       note: transaction.note ?? '',
       merchant: transaction.merchant ?? '',
       category: transaction.category ?? '',
+      payment_method: transaction.payment_method ?? '',
       transaction_date: transaction.transaction_date,
     };
   }
@@ -28,6 +30,7 @@ function getInitialForm(cards: Card[], transaction?: Transaction | null): Transa
     note: '',
     merchant: '',
     category: '',
+    payment_method: '',
     transaction_date: today,
   };
 }
@@ -54,9 +57,17 @@ export default function TransactionForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCardId || form.amount <= 0 || isSubmitting) return;
-    onSubmit({ ...form, card_id: selectedCardId });
+    onSubmit({ ...form, card_id: selectedCardId, payment_method: form.payment_method || null });
     if (!isEditing) {
-      setForm({ ...form, card_id: selectedCardId, amount: 0, note: '', merchant: '', category: '' });
+      setForm({
+        ...form,
+        card_id: selectedCardId,
+        amount: 0,
+        note: '',
+        merchant: '',
+        category: '',
+        payment_method: '',
+      });
     }
   };
 
@@ -126,6 +137,26 @@ export default function TransactionForm({
           onChange={(e) => setForm({ ...form, category: e.target.value })}
           placeholder="例如：餐飲、交通、日用品"
         />
+      </div>
+      <div style={rowStyle}>
+        <label style={labelStyle}>支付工具</label>
+        <select
+          style={inputStyle}
+          value={form.payment_method ?? ''}
+          onChange={(e) =>
+            setForm({
+              ...form,
+              payment_method: e.target.value as TransactionFormData['payment_method'],
+            })
+          }
+        >
+          <option value="">未指定</option>
+          {PAYMENT_METHODS.map((method) => (
+            <option key={method} value={method}>
+              {method}
+            </option>
+          ))}
+        </select>
       </div>
       <div style={rowStyle}>
         <label style={labelStyle}>備註</label>

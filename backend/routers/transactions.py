@@ -38,6 +38,7 @@ def _parse_import_csv(csv_text: str) -> list[schemas.TransactionCreate]:
                     note=(row.get("note") or "").strip() or None,
                     merchant=(row.get("merchant") or "").strip() or None,
                     category=(row.get("category") or "").strip() or None,
+                    payment_method=(row.get("payment_method") or "").strip() or None,
                 )
             )
         except (ValueError, ValidationError) as exc:
@@ -54,6 +55,7 @@ def list_transactions(
     month: Optional[str] = Query(None, description="YYYY-MM format"),
     merchant: Optional[str] = Query(None, min_length=1, max_length=120),
     category: Optional[str] = Query(None, min_length=1, max_length=120),
+    payment_method: Optional[schemas.PaymentMethod] = Query(None),
     min_amount: Optional[float] = Query(None, ge=0),
     max_amount: Optional[float] = Query(None, ge=0),
     db: Session = Depends(get_db),
@@ -74,6 +76,8 @@ def list_transactions(
         query = query.filter(models.Transaction.merchant.ilike(f"%{merchant.strip()}%"))
     if category:
         query = query.filter(models.Transaction.category == category.strip())
+    if payment_method:
+        query = query.filter(models.Transaction.payment_method == payment_method)
     if min_amount is not None:
         query = query.filter(models.Transaction.amount >= min_amount)
     if max_amount is not None:
@@ -93,6 +97,7 @@ def create_transaction(txn_in: schemas.TransactionCreate, db: Session = Depends(
         note=txn_in.note,
         merchant=txn_in.merchant,
         category=txn_in.category,
+        payment_method=txn_in.payment_method,
         transaction_date=txn_in.transaction_date,
     )
 
@@ -125,6 +130,7 @@ def import_transactions_csv(req: schemas.TransactionImportCsvRequest, db: Sessio
             note=row.note,
             merchant=row.merchant,
             category=row.category,
+            payment_method=row.payment_method,
             transaction_date=row.transaction_date,
         )
         for row in rows
@@ -166,6 +172,8 @@ def update_transaction(txn_id: int, txn_in: schemas.TransactionUpdate, db: Sessi
         txn.merchant = txn_in.merchant
     if txn_in.category is not None:
         txn.category = txn_in.category
+    if "payment_method" in txn_in.model_fields_set:
+        txn.payment_method = txn_in.payment_method
     if txn_in.transaction_date is not None:
         txn.transaction_date = txn_in.transaction_date
 

@@ -19,6 +19,16 @@ def ensure_sqlite_schema():
             conn.execute(text("ALTER TABLE transactions ADD COLUMN merchant TEXT"))
         if "category" not in existing_columns:
             conn.execute(text("ALTER TABLE transactions ADD COLUMN category TEXT"))
+        if "payment_method" not in existing_columns:
+            conn.execute(text("ALTER TABLE transactions ADD COLUMN payment_method TEXT"))
+
+    if "reward_rules" not in inspector.get_table_names():
+        return
+
+    existing_reward_rule_columns = {column["name"] for column in inspector.get_columns("reward_rules")}
+    with engine.begin() as conn:
+        if "payment_methods" not in existing_reward_rule_columns:
+            conn.execute(text("ALTER TABLE reward_rules ADD COLUMN payment_methods JSON"))
 
 
 ensure_sqlite_schema()

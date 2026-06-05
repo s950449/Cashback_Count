@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import type { Card, RewardRule, RewardRuleFormData } from '../../types';
+import { PAYMENT_METHODS } from '../../types';
+import type { Card, PaymentMethod, RewardRule, RewardRuleFormData } from '../../types';
 import TierEditor from './TierEditor';
 
 interface Props {
@@ -24,6 +25,7 @@ function buildEmptyRule(cardId: number): RewardRuleFormData {
     is_active: true,
     start_date: null,
     end_date: null,
+    payment_methods: null,
     tiers: [],
   };
 }
@@ -46,6 +48,7 @@ export default function RewardRuleFormModal({ card, rule, onSave, onClose, isSav
         is_active: rule.is_active,
         start_date: rule.start_date,
         end_date: rule.end_date,
+        payment_methods: rule.payment_methods,
         tiers: rule.tiers.map((tier) => ({
           min_amount: tier.min_amount,
           max_amount: tier.max_amount,
@@ -66,8 +69,17 @@ export default function RewardRuleFormModal({ card, rule, onSave, onClose, isSav
       start_date: form.start_date || null,
       end_date: form.end_date || null,
       fixed_rate: form.cashback_type === 'fixed' ? form.fixed_rate : null,
+      payment_methods: form.payment_methods && form.payment_methods.length > 0 ? form.payment_methods : null,
       tiers: form.cashback_type === 'tiered' ? form.tiers : [],
     });
+  };
+
+  const togglePaymentMethod = (method: PaymentMethod) => {
+    const selected = form.payment_methods ?? [];
+    const next = selected.includes(method)
+      ? selected.filter((selectedMethod) => selectedMethod !== method)
+      : [...selected, method];
+    setForm({ ...form, payment_methods: next.length > 0 ? next : null });
   };
 
   return (
@@ -258,6 +270,22 @@ export default function RewardRuleFormModal({ card, rule, onSave, onClose, isSav
             </div>
           </div>
 
+          <div style={rowStyle}>
+            <label style={labelStyle}>限制支付工具</label>
+            <div style={paymentGridStyle}>
+              {PAYMENT_METHODS.map((method) => (
+                <label key={method} style={checkboxStyle}>
+                  <input
+                    type="checkbox"
+                    checked={(form.payment_methods ?? []).includes(method)}
+                    onChange={() => togglePaymentMethod(method)}
+                  />
+                  {method}
+                </label>
+              ))}
+            </div>
+          </div>
+
           <div style={actionsStyle}>
             <button type="button" onClick={onClose} style={secondaryButton} disabled={isSaving}>
               取消
@@ -330,6 +358,23 @@ const toggleStyle: React.CSSProperties = {
   gap: '0.5rem',
   minHeight: '36px',
   fontSize: '0.9rem',
+};
+
+const paymentGridStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+  gap: '0.5rem',
+  padding: '0.75rem',
+  border: '1px solid #e5e7eb',
+  borderRadius: '6px',
+  background: '#fafafa',
+};
+
+const checkboxStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '0.4rem',
+  fontSize: '0.85rem',
 };
 
 const percentStyle: React.CSSProperties = {

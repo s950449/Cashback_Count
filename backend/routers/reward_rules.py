@@ -76,6 +76,7 @@ def create_reward_rule(rule_in: schemas.RewardRuleCreate, db: Session = Depends(
         is_active=rule_in.is_active,
         start_date=rule_in.start_date,
         end_date=rule_in.end_date,
+        payment_methods=rule_in.payment_methods,
     )
     _replace_tiers(rule, rule_in.tiers)
 
@@ -110,6 +111,7 @@ def update_reward_rule(rule_id: int, rule_in: schemas.RewardRuleUpdate, db: Sess
     rule.is_active = rule_in.is_active
     rule.start_date = rule_in.start_date
     rule.end_date = rule_in.end_date
+    rule.payment_methods = rule_in.payment_methods
     _replace_tiers(rule, rule_in.tiers)
 
     db.flush()

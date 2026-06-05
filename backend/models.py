@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, Integer, Text, Float, DateTime, Date, ForeignKey
+from sqlalchemy import Boolean, Column, Integer, Text, Float, DateTime, Date, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 
@@ -52,6 +52,7 @@ class RewardRule(Base):
     is_active = Column(Boolean, default=True)
     start_date = Column(Date)
     end_date = Column(Date)
+    payment_methods = Column(JSON)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     card = relationship("Card", back_populates="reward_rules")
@@ -80,6 +81,7 @@ class Transaction(Base):
     note = Column(Text)
     merchant = Column(Text)
     category = Column(Text)
+    payment_method = Column(Text)
     transaction_date = Column(Date, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 

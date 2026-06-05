@@ -78,6 +78,7 @@ export async function fetchTransactions(params?: {
   month?: string;
   merchant?: string;
   category?: string;
+  payment_method?: string;
   min_amount?: number;
   max_amount?: number;
 }): Promise<Transaction[]> {

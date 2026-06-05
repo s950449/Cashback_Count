@@ -60,6 +60,7 @@ def create_transaction(
     note="",
     merchant=None,
     category=None,
+    payment_method=None,
 ):
     response = client.post(
         "/api/transactions",
@@ -69,6 +70,7 @@ def create_transaction(
             "note": note,
             "merchant": merchant,
             "category": category,
+            "payment_method": payment_method,
             "transaction_date": transaction_date,
         },
     )
@@ -90,6 +92,7 @@ def create_reward_rule(client, card_id, **overrides):
         "is_active": True,
         "start_date": None,
         "end_date": None,
+        "payment_methods": None,
         "tiers": [],
     }
     payload.update(overrides)
@@ -227,6 +230,29 @@ def test_transaction_filter_rejects_invalid_amount_range(client):
     )
 
     assert response.status_code == 422
+
+
+def test_transaction_filters_by_payment_method(client):
+    card = create_card(client)
+    apple_pay = create_transaction(
+        client,
+        card["id"],
+        300,
+        transaction_date="2026-06-01",
+        payment_method="Apple Pay",
+    )
+    create_transaction(
+        client,
+        card["id"],
+        300,
+        transaction_date="2026-06-02",
+        payment_method="Line Pay",
+    )
+
+    response = client.get("/api/transactions", params={"payment_method": "Apple Pay"})
+
+    assert response.status_code == 200, response.text
+    assert [txn["id"] for txn in response.json()] == [apple_pay["id"]]
 
 
 def test_dashboard_summary_includes_category_breakdown(client):
@@ -527,6 +553,61 @@ def test_reward_rule_changes_recalculate_existing_transactions(client):
     assert deleted.status_code == 204
     txns = client.get("/api/transactions", params={"card_id": card["id"]}).json()
     assert txns[0]["cashback"] == 0
+
+
+def test_payment_method_reward_rule_only_applies_to_matching_transactions(client):
+    card = create_card(client, fixed_rate=0)
+    create_reward_rule(
+        client,
+        card["id"],
+        rule_name="Apple Pay 加碼",
+        reward_kind="campaign_bonus",
+        fixed_rate=0.05,
+        payment_methods=["Apple Pay"],
+    )
+
+    apple_pay = create_transaction(client, card["id"], 1000, payment_method="Apple Pay")
+    line_pay = create_transaction(client, card["id"], 1000, payment_method="Line Pay")
+
+    txns = client.get("/api/transactions", params={"card_id": card["id"]}).json()
+    cashback_by_id = {txn["id"]: txn["cashback"] for txn in txns}
+    assert cashback_by_id[apple_pay["id"]] == 50
+    assert cashback_by_id[line_pay["id"]] == 0
+
+
+def test_unrestricted_reward_rule_applies_when_payment_method_is_blank(client):
+    card = create_card(client, fixed_rate=0)
+    create_reward_rule(client, card["id"], fixed_rate=0.02, payment_methods=None)
+
+    txn = create_transaction(client, card["id"], 500)
+
+    assert txn["payment_method"] is None
+    assert txn["cashback"] == 10
+
+
+def test_import_transactions_csv_accepts_payment_method(client):
+    card = create_card(client, fixed_rate=0)
+    create_reward_rule(
+        client,
+        card["id"],
+        fixed_rate=0.05,
+        payment_methods=["臺灣Pay"],
+    )
+
+    response = client.post(
+        "/api/transactions/import-csv",
+        json={
+            "csv_text": (
+                "card_id,amount,transaction_date,note,payment_method\n"
+                f"{card['id']},1000,2026-06-01,scan,臺灣Pay\n"
+            )
+        },
+    )
+
+    assert response.status_code == 201, response.text
+    imported = response.json()["transactions"][0]
+    assert imported["payment_method"] == "臺灣Pay"
+    assert imported["cashback"] == 50
 
 
 def test_dashboard_summary_includes_category_budget_usage(client):

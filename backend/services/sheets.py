@@ -50,7 +50,7 @@ def export_to_sheets(db: Session, req: schemas.ExportRequest) -> str:
         ws = sh.add_worksheet(title=worksheet_title, rows=str(len(txns) + 10), cols="10")
 
     # Header
-    headers = ["日期", "銀行", "卡片", "金額", "回饋", "備註"]
+    headers = ["日期", "銀行", "卡片", "商店", "分類", "支付工具", "金額", "回饋", "備註"]
     rows = [headers]
 
     for t in txns:
@@ -59,6 +59,9 @@ def export_to_sheets(db: Session, req: schemas.ExportRequest) -> str:
             str(t.transaction_date),
             card.bank_name if card else "",
             card.card_name if card else "",
+            t.merchant or "",
+            t.category or "",
+            t.payment_method or "",
             t.amount,
             t.cashback or 0,
             t.note or "",
@@ -68,7 +71,7 @@ def export_to_sheets(db: Session, req: schemas.ExportRequest) -> str:
     total_amount = sum(t.amount for t in txns)
     total_cashback = sum(t.cashback or 0 for t in txns)
     rows.append([])
-    rows.append(["合計", "", "", total_amount, total_cashback, ""])
+    rows.append(["合計", "", "", "", "", "", total_amount, total_cashback, ""])
 
     ws.update(range_name="A1", values=rows)
 

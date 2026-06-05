@@ -88,6 +88,14 @@ def _is_reward_rule_active_on(rule: models.RewardRule, txn_date: date) -> bool:
     return True
 
 
+def _reward_rule_matches_transaction(rule: models.RewardRule, txn: models.Transaction) -> bool:
+    if not _is_reward_rule_active_on(rule, txn.transaction_date):
+        return False
+    if rule.payment_methods:
+        return txn.payment_method in rule.payment_methods
+    return True
+
+
 def _calc_reward_rule_raw(rule: models.RewardRule, amount: float, spent_so_far: float = 0) -> float:
     if rule.cashback_type == "fixed":
         return _calc_fixed_cashback(amount, rule.fixed_rate or 0)
@@ -121,7 +129,7 @@ def _get_reward_rule_recalc_range(
         expanded = False
         for txn in txns:
             for rule in rules:
-                if not _is_reward_rule_active_on(rule, txn.transaction_date):
+                if not _reward_rule_matches_transaction(rule, txn):
                     continue
                 cycle_start, cycle_end = _get_reward_rule_cycle_range(card, rule, txn.transaction_date)
                 if cycle_start < start:
@@ -279,7 +287,7 @@ def recalculate_reward_rules(db: Session, card: models.Card, ref_date: date) -> 
     for rule in rules:
         txns_by_cycle: dict[tuple[date, date], list[models.Transaction]] = {}
         for txn in txns:
-            if not _is_reward_rule_active_on(rule, txn.transaction_date):
+            if not _reward_rule_matches_transaction(rule, txn):
                 continue
             cycle = _get_reward_rule_cycle_range(card, rule, txn.transaction_date)
             txns_by_cycle.setdefault(cycle, []).append(txn)
