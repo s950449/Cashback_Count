@@ -50,7 +50,7 @@ Cashback_Count/
 │   │   └── components/
 │   │       ├── layout/              # Navbar, Layout
 │   │       ├── transaction/         # TransactionForm, TransactionList
-│   │       ├── card/                # CardList, CardFormModal, TierEditor
+│   │       ├── card/                # CardList, CardFormModal, RewardRuleList, RewardRuleFormModal, TierEditor
 │   │       └── dashboard/           # MonthlySummary, CashbackProgress
 │   ├── index.html
 │   ├── package.json

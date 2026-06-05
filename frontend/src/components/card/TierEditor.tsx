@@ -1,8 +1,10 @@
-import type { CashbackTier } from '../../types';
+import type { CashbackTier, RewardRuleTier } from '../../types';
+
+type EditableTier = Omit<CashbackTier, 'id' | 'card_id'> | Omit<RewardRuleTier, 'id' | 'reward_rule_id'>;
 
 interface Props {
-  tiers: Omit<CashbackTier, 'id' | 'card_id'>[];
-  onChange: (tiers: Omit<CashbackTier, 'id' | 'card_id'>[]) => void;
+  tiers: EditableTier[];
+  onChange: (tiers: EditableTier[]) => void;
 }
 
 export default function TierEditor({ tiers, onChange }: Props) {

@@ -1,8 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Card, CardFormData } from '../types';
-import { fetchCards, createCard, updateCard, deleteCard } from '../api/client';
+import type { Card, CardFormData, RewardRule, RewardRuleFormData } from '../types';
+import {
+  createCard,
+  createRewardRule,
+  deleteCard,
+  deleteRewardRule,
+  fetchCards,
+  fetchRewardRules,
+  updateCard,
+  updateRewardRule,
+} from '../api/client';
 import CardList from '../components/card/CardList';
 import CardFormModal from '../components/card/CardFormModal';
+import RewardRuleFormModal from '../components/card/RewardRuleFormModal';
+import RewardRuleList from '../components/card/RewardRuleList';
 
 function getErrorMessage(error: unknown, fallback: string) {
   if (typeof error === 'object' && error !== null && 'response' in error) {
@@ -15,19 +26,25 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 export default function CardSettingsPage() {
   const [cards, setCards] = useState<Card[]>([]);
+  const [rewardRules, setRewardRules] = useState<RewardRule[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editingCard, setEditingCard] = useState<Card | null>(null);
+  const [ruleCard, setRuleCard] = useState<Card | null>(null);
+  const [editingRule, setEditingRule] = useState<RewardRule | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingRule, setSavingRule] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [deletingRuleId, setDeletingRuleId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchCards();
-      setCards(data);
+      const [cardsData, rulesData] = await Promise.all([fetchCards(), fetchRewardRules()]);
+      setCards(cardsData);
+      setRewardRules(rulesData);
     } catch (err) {
       setError(getErrorMessage(err, '載入卡片失敗'));
     } finally {
@@ -77,6 +94,54 @@ export default function CardSettingsPage() {
     }
   };
 
+  const rulesByCardId = rewardRules.reduce<Record<number, RewardRule[]>>((acc, rule) => {
+    acc[rule.card_id] = [...(acc[rule.card_id] ?? []), rule];
+    return acc;
+  }, {});
+
+  const handleAddRule = (card: Card) => {
+    setRuleCard(card);
+    setEditingRule(null);
+  };
+
+  const handleEditRule = (card: Card, rule: RewardRule) => {
+    setRuleCard(card);
+    setEditingRule(rule);
+  };
+
+  const handleSaveRule = async (data: RewardRuleFormData) => {
+    setSavingRule(true);
+    setError(null);
+    try {
+      if (editingRule) {
+        await updateRewardRule(editingRule.id, data);
+      } else {
+        await createRewardRule(data);
+      }
+      setRuleCard(null);
+      setEditingRule(null);
+      await load();
+    } catch (err) {
+      setError(getErrorMessage(err, editingRule ? '更新回饋規則失敗' : '新增回饋規則失敗'));
+    } finally {
+      setSavingRule(false);
+    }
+  };
+
+  const handleDeleteRule = async (id: number) => {
+    if (!confirm('確定刪除此回饋規則？既有交易回饋會重新計算。')) return;
+    setDeletingRuleId(id);
+    setError(null);
+    try {
+      await deleteRewardRule(id);
+      await load();
+    } catch (err) {
+      setError(getErrorMessage(err, '刪除回饋規則失敗'));
+    } finally {
+      setDeletingRuleId(null);
+    }
+  };
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
@@ -103,10 +168,26 @@ export default function CardSettingsPage() {
       {loading ? (
         <p style={{ color: '#888' }}>載入中...</p>
       ) : (
-        <CardList cards={cards} onEdit={handleEdit} onDelete={handleDelete} />
+        <CardList
+          cards={cards}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          renderDetails={(card) => (
+            <RewardRuleList
+              rules={rulesByCardId[card.id] ?? []}
+              onAdd={() => handleAddRule(card)}
+              onEdit={(rule) => handleEditRule(card, rule)}
+              onDelete={handleDeleteRule}
+            />
+          )}
+        />
       )}
       {saving && <p style={{ color: '#888', fontSize: '0.9rem' }}>正在儲存卡片...</p>}
+      {savingRule && <p style={{ color: '#888', fontSize: '0.9rem' }}>正在儲存回饋規則...</p>}
       {deletingId && <p style={{ color: '#888', fontSize: '0.9rem' }}>正在刪除卡片 #{deletingId}...</p>}
+      {deletingRuleId && (
+        <p style={{ color: '#888', fontSize: '0.9rem' }}>正在刪除回饋規則 #{deletingRuleId}...</p>
+      )}
       {showModal && (
         <CardFormModal
           card={editingCard}
@@ -115,6 +196,18 @@ export default function CardSettingsPage() {
           onClose={() => {
             setShowModal(false);
             setEditingCard(null);
+          }}
+        />
+      )}
+      {ruleCard && (
+        <RewardRuleFormModal
+          card={ruleCard}
+          rule={editingRule}
+          onSave={handleSaveRule}
+          isSaving={savingRule}
+          onClose={() => {
+            setRuleCard(null);
+            setEditingRule(null);
           }}
         />
       )}
