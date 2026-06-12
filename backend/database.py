@@ -1,8 +1,12 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, DeclarativeBase
 import os
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "cashback.db")
+from sqlalchemy import create_engine
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
+
+DB_PATH = os.environ.get(
+    "CASHBACK_DB_PATH",
+    os.path.join(os.path.dirname(__file__), "cashback.db"),
+)
 SQLALCHEMY_DATABASE_URL = f"sqlite:///{DB_PATH}"
 
 engine = create_engine(
