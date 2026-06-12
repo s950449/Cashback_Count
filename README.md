@@ -89,6 +89,53 @@ npm run dev
 
 Swagger API 文件：`http://localhost:8000/docs`
 
+## Container Images
+
+前後端可分別打包成 container image：
+
+```bash
+# Backend image
+container build -t cashback-count-backend:latest ./backend
+
+# Frontend image
+container build -t cashback-count-frontend:latest ./frontend
+```
+
+本機啟動範例：
+
+```bash
+# Backend: http://localhost:8000
+container run --rm \
+  -p 8000:8000 \
+  -v cashback-count-data:/data \
+  cashback-count-backend:latest
+
+# Frontend: http://localhost:8080
+container run --rm \
+  -p 8080:80 \
+  cashback-count-frontend:latest
+```
+
+可用環境變數調整後端設定：
+
+```bash
+container run --rm \
+  -p 8000:8000 \
+  -e CASHBACK_DB_PATH=/data/cashback.db \
+  -e CASHBACK_CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://localhost:8080,http://127.0.0.1:8080 \
+  -v cashback-count-data:/data \
+  cashback-count-backend:latest
+```
+
+若前端需要指向其他 API 位址，可在 build 時覆寫：
+
+```bash
+container build \
+  --build-arg VITE_API_BASE_URL=http://localhost:8000/api \
+  -t cashback-count-frontend:latest \
+  ./frontend
+```
+
 ## 資料庫設計
 
 ### cards 表
